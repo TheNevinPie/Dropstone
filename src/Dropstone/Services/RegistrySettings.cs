@@ -1,10 +1,10 @@
 using Microsoft.Win32;
 
-namespace BedrockAutoCopyInstaller.Services;
+namespace Dropstone.Services;
 
 internal static class RegistrySettings
 {
-    public const string KeyPath = @"Software\Bedrock-AutoCopy";
+    public const string KeyPath = @"Software\Dropstone";
 
     public static void Save(string installDir)
     {

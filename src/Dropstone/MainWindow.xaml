@@ -1,8 +1,8 @@
 <Window
-    x:Class="BedrockAutoCopyInstaller.MainWindow"
+    x:Class="Dropstone.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="Bedrock AutoCopy Installer">
+    Title="Dropstone Installer">
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.RowDefinitions>
@@ -12,7 +12,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Padding="28,24,28,12" Spacing="4">
-            <TextBlock Text="Bedrock AutoCopy" Style="{StaticResource TitleTextBlockStyle}" />
+            <TextBlock Text="Dropstone" Style="{StaticResource TitleTextBlockStyle}" />
             <TextBlock
                 Text="Deploy your own payload files into LeviLauncher version folders."
                 Opacity="0.7"
@@ -22,6 +22,12 @@
         <ScrollViewer Grid.Row="1" Padding="28,8,28,16" VerticalScrollBarVisibility="Auto">
             <Grid>
                 <StackPanel x:Name="SetupPanel" Spacing="16">
+                    <InfoBar
+                        x:Name="PresetInfoBar"
+                        IsClosable="True"
+                        IsOpen="False"
+                        Severity="Informational"
+                        Title="Deployment preset loaded" />
                     <InfoBar
                         x:Name="LauncherInfoBar"
                         IsClosable="False"
@@ -75,7 +81,7 @@
                         IsClosable="False"
                         IsOpen="True"
                         Severity="Success"
-                        Title="AutoCopy is already installed" />
+                        Title="Dropstone is already installed" />
                     <TextBlock
                         x:Name="InstalledSummaryText"
                         IsTextSelectionEnabled="True"
@@ -97,10 +103,10 @@
                 <StackPanel x:Name="ArchivePanel" Spacing="16" Visibility="Collapsed">
                     <TextBlock
                         x:Name="ArchiveTitleText"
-                        Text="Choose payload archive"
+                        Text="Choose payload source"
                         Style="{StaticResource SubtitleTextBlockStyle}" />
                     <TextBlock
-                        Text="Select a .zip or .rar containing the files to deploy. The archive is extracted into the install folder's 'payload' directory."
+                        Text="Select a .zip or .rar containing the files to deploy, or use the payload preset in config.ini. The archive is extracted into the install folder's 'payload' directory."
                         Opacity="0.7"
                         TextWrapping="Wrap" />
                     <Button Content="Browse for archive..." Click="BrowseArchive_Click" />

@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.Text.Json;
-using BedrockAutoCopyInstaller.Models;
+using Dropstone.Models;
 
-namespace BedrockAutoCopyInstaller.Services;
+namespace Dropstone.Services;
 
 public sealed class InstallerService
 {
@@ -81,7 +81,7 @@ public sealed class InstallerService
         var marker = new InstalledMarker
         {
             InstallDir = installDir,
-            PayloadArchive = archivePath,
+            PayloadArchive = request.PayloadSource ?? archivePath,
             PayloadFileCount = Directory
                 .EnumerateFiles(payloadDirectory, "*", SearchOption.AllDirectories)
                 .Count(),

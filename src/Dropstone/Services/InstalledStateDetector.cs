@@ -1,15 +1,15 @@
 using System.Text.Json;
-using BedrockAutoCopyInstaller.Models;
+using Dropstone.Models;
 using Microsoft.Win32;
 
-namespace BedrockAutoCopyInstaller.Services;
+namespace Dropstone.Services;
 
 public static class InstalledStateDetector
 {
     public static string DefaultInstallDir =>
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Bedrock-AutoCopy");
+            "Dropstone");
 
     public static InstalledMarker? Detect()
     {

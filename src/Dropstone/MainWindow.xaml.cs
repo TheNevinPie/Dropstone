@@ -1,20 +1,22 @@
 using System.Text;
-using BedrockAutoCopyInstaller.Models;
-using BedrockAutoCopyInstaller.Services;
+using Dropstone.Models;
+using Dropstone.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Windows.Graphics;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 
-namespace BedrockAutoCopyInstaller;
+namespace Dropstone;
 
 public sealed partial class MainWindow : Window
 {
     private readonly InstallerService _installer = new();
+    private readonly DeploymentConfig _deployment = DeploymentConfig.Load();
     private LauncherInfo? _launcher;
     private InstalledMarker? _installed;
     private string? _archivePath;
+    private string? _payloadUrl;
     private bool _replaceMode;
     private bool _closed;
 
@@ -32,14 +34,89 @@ public sealed partial class MainWindow : Window
         }
 
         Closed += (_, _) => _closed = true;
+        ShowDeploymentPreset();
         RefreshState();
+    }
+
+    private void ShowDeploymentPreset()
+    {
+        if (!_deployment.Exists)
+        {
+            return;
+        }
+
+        var details = new List<string>();
+        var defaultInstallDir = InstalledStateDetector.DefaultInstallDir;
+        var hasCustomInstallDir =
+            !string.IsNullOrWhiteSpace(_deployment.InstallDir) &&
+            !string.Equals(
+                Path.TrimEndingDirectorySeparator(_deployment.InstallDir),
+                Path.TrimEndingDirectorySeparator(defaultInstallDir),
+                StringComparison.OrdinalIgnoreCase);
+        if (hasCustomInstallDir)
+        {
+            details.Add($"Install folder: {_deployment.InstallDir}");
+        }
+        if (!string.IsNullOrWhiteSpace(_deployment.LauncherExe))
+        {
+            details.Add($"Launcher: {_deployment.LauncherExe}");
+        }
+        if (!string.IsNullOrWhiteSpace(_deployment.VersionsDir))
+        {
+            details.Add($"Versions folder: {_deployment.VersionsDir}");
+        }
+        if (_deployment.Mode == PayloadMode.Local && !string.IsNullOrWhiteSpace(_deployment.PayloadPath))
+        {
+            details.Add($"Payload: {_deployment.PayloadPath}");
+        }
+        else if (_deployment.Mode == PayloadMode.Url && _deployment.PayloadUri is not null)
+        {
+            details.Add($"Payload URL: {_deployment.PayloadUri}");
+        }
+
+        if (details.Count == 0 && _deployment.Warning is null)
+        {
+            return;
+        }
+
+        if (_deployment.Warning is not null)
+        {
+            details.Add($"Warning: {_deployment.Warning}");
+        }
+
+        PresetInfoBar.Severity = _deployment.Warning is null
+            ? InfoBarSeverity.Informational
+            : InfoBarSeverity.Warning;
+        PresetInfoBar.Message = string.Join(Environment.NewLine, details);
+        PresetInfoBar.IsOpen = true;
+    }
+
+    private LauncherInfo? DetectPresetLauncher()
+    {
+        var hasVersionsDir =
+            !string.IsNullOrWhiteSpace(_deployment.VersionsDir) &&
+            Directory.Exists(_deployment.VersionsDir);
+
+        if (!string.IsNullOrWhiteSpace(_deployment.LauncherExe) && File.Exists(_deployment.LauncherExe))
+        {
+            var exePath = Path.GetFullPath(_deployment.LauncherExe);
+            var versionsDir = hasVersionsDir
+                ? _deployment.VersionsDir
+                : LauncherDetector.FromExe(exePath).VersionsDir;
+            return new LauncherInfo(exePath, versionsDir);
+        }
+
+        return hasVersionsDir ? new LauncherInfo(null, _deployment.VersionsDir) : null;
     }
 
     private void RefreshState()
     {
-        _launcher = LauncherDetector.Detect();
+        _launcher = DetectPresetLauncher() ?? LauncherDetector.Detect();
         _installed = InstalledStateDetector.Detect();
-        InstallPathBox.Text = _installed?.InstallDir ?? InstalledStateDetector.DefaultInstallDir;
+        InstallPathBox.Text = _installed?.InstallDir ??
+            (!string.IsNullOrWhiteSpace(_deployment.InstallDir)
+                ? _deployment.InstallDir
+                : InstalledStateDetector.DefaultInstallDir);
         UpdateLauncherInfo();
 
         if (_installed is not null)
@@ -59,7 +136,7 @@ public sealed partial class MainWindow : Window
             LauncherInfoBar.Severity = InfoBarSeverity.Warning;
             LauncherInfoBar.Title = "LeviLauncher not found";
             LauncherInfoBar.Message =
-                "Install LeviLauncher first, or locate LeviLauncher.exe manually. The AutoCopy task is configured for your Windows account.";
+                "Install LeviLauncher first, or locate LeviLauncher.exe manually. The Dropstone task is configured for your Windows account.";
             LocateLauncherButton.Visibility = Visibility.Visible;
             NextButton.IsEnabled = false;
             return;
@@ -120,20 +197,56 @@ public sealed partial class MainWindow : Window
     private void ShowArchive()
     {
         ShowOnly(ArchivePanel);
-        ArchiveTitleText.Text = _replaceMode ? "Choose replacement payload" : "Choose payload archive";
+        ArchiveTitleText.Text = _replaceMode ? "Choose replacement payload" : "Choose payload source";
         ArchiveErrorBar.IsOpen = false;
+        ArchiveErrorBar.Severity = InfoBarSeverity.Error;
         ArchivePathText.Text = "No archive selected.";
         InstallButton.Content = _replaceMode ? "Replace payload" : "Install";
         InstallButton.IsEnabled = false;
         _archivePath = null;
+        _payloadUrl = null;
+        ApplyPresetPayload();
+    }
+
+    private void ApplyPresetPayload()
+    {
+        if (_deployment.Mode == PayloadMode.Local && !string.IsNullOrWhiteSpace(_deployment.PayloadPath))
+        {
+            ArchivePathText.Text = _deployment.PayloadPath;
+            if (File.Exists(_deployment.PayloadPath))
+            {
+                _archivePath = _deployment.PayloadPath;
+                InstallButton.IsEnabled = true;
+            }
+            else
+            {
+                ArchiveErrorBar.Severity = InfoBarSeverity.Warning;
+                ArchiveErrorBar.Message = $"The preset payload was not found: {_deployment.PayloadPath}";
+                ArchiveErrorBar.IsOpen = true;
+            }
+        }
+        else if (_deployment.Mode == PayloadMode.Url && _deployment.PayloadUri is not null)
+        {
+            _payloadUrl = _deployment.PayloadUri.AbsoluteUri;
+            ArchivePathText.Text = _payloadUrl;
+            InstallButton.IsEnabled = true;
+        }
+
+        if (_deployment.Warning is not null)
+        {
+            ArchiveErrorBar.Severity = InfoBarSeverity.Warning;
+            ArchiveErrorBar.Message = _deployment.Warning;
+            ArchiveErrorBar.IsOpen = true;
+        }
     }
 
     private void ShowArchiveWithError(string message)
     {
         ShowOnly(ArchivePanel);
+        ArchiveErrorBar.Severity = InfoBarSeverity.Error;
         ArchiveErrorBar.Message = message;
         ArchiveErrorBar.IsOpen = true;
-        InstallButton.IsEnabled = _archivePath is not null;
+        InstallButton.IsEnabled = _archivePath is not null || _payloadUrl is not null;
     }
 
     private void ShowOnly(FrameworkElement panel)
@@ -265,6 +378,7 @@ public sealed partial class MainWindow : Window
         }
 
         _archivePath = file.Path;
+        _payloadUrl = null;
         ArchivePathText.Text = file.Path;
         ArchiveErrorBar.IsOpen = false;
         InstallButton.IsEnabled = true;
@@ -298,7 +412,7 @@ public sealed partial class MainWindow : Window
 
     private async void Install_Click(object sender, RoutedEventArgs e)
     {
-        if (_archivePath is null)
+        if (_archivePath is null && _payloadUrl is null)
         {
             return;
         }
@@ -307,21 +421,31 @@ public sealed partial class MainWindow : Window
             ? _installed.InstallDir
             : InstallPathBox.Text.Trim();
 
-        var request = new InstallRequest
-        {
-            InstallDir = installDir,
-            ArchivePath = _archivePath,
-            LauncherExe = _launcher?.ExePath ?? _installed?.LauncherExe,
-            VersionsDir = _launcher?.VersionsDir ?? _installed?.VersionsDir,
-            IsReplace = _replaceMode
-        };
-
         ShowOnly(ProgressPanel);
         ProgressText.Text = "Preparing...";
 
+        string? downloadedArchive = null;
         try
         {
             var progress = new Progress<string>(message => ProgressText.Text = message);
+            var archivePath = _archivePath;
+            if (archivePath is null)
+            {
+                ProgressText.Text = "Downloading payload...";
+                downloadedArchive = await Task.Run(() => PayloadDownloader.Download(new Uri(_payloadUrl!), progress));
+                archivePath = downloadedArchive;
+            }
+
+            var request = new InstallRequest
+            {
+                InstallDir = installDir,
+                ArchivePath = archivePath,
+                PayloadSource = _payloadUrl,
+                LauncherExe = _launcher?.ExePath ?? _installed?.LauncherExe,
+                VersionsDir = _launcher?.VersionsDir ?? _installed?.VersionsDir,
+                IsReplace = _replaceMode
+            };
+
             var outcome = await Task.Run(() => _installer.Install(request, progress));
 
             var title = _replaceMode ? "Payload replaced" : "Installed";
@@ -345,6 +469,13 @@ public sealed partial class MainWindow : Window
         {
             ShowArchiveWithError(exception.Message);
         }
+        finally
+        {
+            if (downloadedArchive is not null)
+            {
+                PayloadDownloader.TryDelete(downloadedArchive);
+            }
+        }
     }
 
     private async void Uninstall_Click(object sender, RoutedEventArgs e)
@@ -357,7 +488,7 @@ public sealed partial class MainWindow : Window
         var dialog = new ContentDialog
         {
             XamlRoot = Content.XamlRoot,
-            Title = "Uninstall Bedrock AutoCopy?",
+            Title = "Uninstall Dropstone?",
             Content = "This removes the logic files, payload, scheduled task, and settings. LeviLauncher itself is not touched.",
             PrimaryButtonText = "Uninstall",
             CloseButtonText = "Cancel",
@@ -380,7 +511,7 @@ public sealed partial class MainWindow : Window
 
             ShowResult(
                 "Uninstalled",
-                "The AutoCopy task, settings, and files were removed. LeviLauncher was not touched.",
+                "The Dropstone task, settings, and files were removed. LeviLauncher was not touched.",
                 isError: false);
             await CloseAfterDelayAsync();
         }

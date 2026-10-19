@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Text.Json;
-using BedrockAutoCopyInstaller.Models;
+using Dropstone.Models;
 using Microsoft.Win32;
 
-namespace BedrockAutoCopyInstaller.Services;
+namespace Dropstone.Services;
 
 public static class LauncherDetector
 {

@@ -1,4 +1,4 @@
-# Bedrock AutoCopy - single-pass payload sync
+# Dropstone - single-pass payload sync
 #
 # Copies the files from the "payload" folder next to this script into every
 # LeviLauncher version folder that does not have them yet, preserving relative
@@ -43,7 +43,7 @@ if (-not $FilesDir) { $FilesDir = Join-Path $scriptDir "payload" }
 $logFile    = Join-Path $scriptDir "sync_log.txt"
 $configFile = Join-Path $scriptDir "config.ini"
 
-$mutex = New-Object System.Threading.Mutex($false, "Local\BedrockAutoCopySync")
+$mutex = New-Object System.Threading.Mutex($false, "Local\DropstoneSync")
 if (-not $mutex.WaitOne(0)) { exit 0 }
 
 function Write-Log([string]$Message) {
@@ -65,7 +65,7 @@ function Show-MessageBox([string]$Message) {
     if ($Quiet) { return }
     try {
         Add-Type -AssemblyName System.Windows.Forms
-        [System.Windows.Forms.MessageBox]::Show($Message, "Bedrock AutoCopy", 0, 16) | Out-Null
+        [System.Windows.Forms.MessageBox]::Show($Message, "Dropstone", 0, 16) | Out-Null
     } catch {
         Write-Host $Message
     }
@@ -90,7 +90,7 @@ function Set-ConfigValue([string]$Key, [string]$Value) {
     }
     $data[$Key.ToLower()] = $Value
     $out = @(
-        "# Bedrock AutoCopy configuration.",
+        "# Dropstone configuration.",
         "# watchDir: your LeviLauncher 'versions' folder.",
         "# launcherExe: path to LeviLauncher.exe (used by the launcher shortcut)."
     )
@@ -266,7 +266,7 @@ try {
         Write-Log "Versions folder resolved to $targetDir - nothing new to copy."
     }
 
-    Write-Info "Bedrock AutoCopy sync finished."
+    Write-Info "Dropstone sync finished."
     Write-Info "  versions:  $targetDir"
     Write-Info "  payload:   $FilesDir ($($payload.Count) file(s))"
     Write-Info "  copied:    $copied"

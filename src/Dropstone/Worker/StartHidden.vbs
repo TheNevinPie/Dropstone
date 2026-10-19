@@ -1,4 +1,4 @@
-' Bedrock AutoCopy - hidden PowerShell runner.
+' Dropstone - hidden PowerShell runner.
 ' Runs a PowerShell script with no visible window (used by the scheduled task).
 '
 ' Usage:

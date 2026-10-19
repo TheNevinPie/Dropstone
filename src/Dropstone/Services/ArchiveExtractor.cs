@@ -1,7 +1,7 @@
 using SharpCompress.Archives;
 using SharpCompress.Readers;
 
-namespace BedrockAutoCopyInstaller.Services;
+namespace Dropstone.Services;
 
 internal static class ArchiveExtractor
 {

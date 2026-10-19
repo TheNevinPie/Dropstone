@@ -1,4 +1,4 @@
-' Bedrock AutoCopy - launcher wrapper.
+' Dropstone - launcher wrapper.
 ' Runs Sync.ps1 silently (waits for it), then starts LeviLauncher.
 ' Use this to start LeviLauncher so a newly installed version is topped up
 ' before you launch a game from it.
@@ -58,5 +58,5 @@ If launcher <> "" And fso.FileExists(launcher) Then
     shell.Run """" & launcher & """", 1, False
 Else
     MsgBox "LeviLauncher.exe was not found." & vbCrLf & vbCrLf & _
-           "Set launcherExe=<full path> in:" & vbCrLf & cfg, 16, "Bedrock AutoCopy"
+           "Set launcherExe=<full path> in:" & vbCrLf & cfg, 16, "Dropstone"
 End If

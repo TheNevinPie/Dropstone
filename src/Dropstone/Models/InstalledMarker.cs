@@ -1,4 +1,4 @@
-namespace BedrockAutoCopyInstaller.Models;
+namespace Dropstone.Models;
 
 public sealed class InstalledMarker
 {

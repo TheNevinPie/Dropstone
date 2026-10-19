@@ -1,6 +1,6 @@
 using Microsoft.UI.Xaml;
 
-namespace BedrockAutoCopyInstaller;
+namespace Dropstone;
 
 public partial class App : Application
 {

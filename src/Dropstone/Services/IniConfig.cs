@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace BedrockAutoCopyInstaller.Services;
+namespace Dropstone.Services;
 
 internal static class IniConfig
 {
@@ -38,7 +38,7 @@ internal static class IniConfig
     {
         var lines = new List<string>
         {
-            "# Bedrock AutoCopy configuration.",
+            "# Dropstone configuration.",
             "# watchDir: the LeviLauncher 'versions' folder.",
             "# launcherExe: path to LeviLauncher.exe."
         };

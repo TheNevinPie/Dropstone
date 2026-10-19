@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace BedrockAutoCopyInstaller.Services;
+namespace Dropstone.Services;
 
 internal static class JsonDefaults
 {

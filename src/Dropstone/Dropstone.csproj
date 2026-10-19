@@ -3,14 +3,16 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
-    <RootNamespace>BedrockAutoCopyInstaller</RootNamespace>
+    <RootNamespace>Dropstone</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x64</Platforms>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <UseWinUI>true</UseWinUI>
     <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsPackageType>None</WindowsPackageType>
-    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <WindowsAppSdkUndockedRegFreeWinRTInitialize>true</WindowsAppSdkUndockedRegFreeWinRTInitialize>
+    <ProjectPriFileName>resources.pri</ProjectPriFileName>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
@@ -19,9 +21,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <AssemblyName>BedrockAutoCopyInstaller</AssemblyName>
-    <ApplicationTitle>Bedrock AutoCopy Installer</ApplicationTitle>
-    <Version>0.1.1</Version>
+    <AssemblyName>Dropstone</AssemblyName>
+    <ApplicationTitle>Dropstone</ApplicationTitle>
+    <Version>0.2.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
