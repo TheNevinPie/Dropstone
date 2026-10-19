@@ -27,17 +27,11 @@ The sync copies payload files into each LeviLauncher version folder that does no
 .\build.ps1
 ```
 
-The portable build is written to `publish\`. Run `publish\BedrockAutoCopyInstaller.exe`.
-
-For a smaller framework-dependent build:
-
-```powershell
-.\build.ps1 -FrameworkDependent
-```
+The build writes a single, self-contained executable to `publish\BedrockAutoCopyInstaller.exe`. Distribute only that file. On first launch it extracts its bundled runtime dependencies to a temporary folder.
 
 ## Install
 
-1. Run `BedrockAutoCopyInstaller.exe`.
+1. Download `BedrockAutoCopyInstaller.exe` from the latest release and run it directly.
 2. Confirm the detected LeviLauncher path (or locate `LeviLauncher.exe` manually).
 3. Choose the install folder. The default is `%LOCALAPPDATA%\Bedrock-AutoCopy`.
 4. Choose a `.zip` or `.rar` payload archive.

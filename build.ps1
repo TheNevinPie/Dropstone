@@ -1,7 +1,3 @@
-param(
-    [switch]$FrameworkDependent
-)
-
 $ErrorActionPreference = "Stop"
 
 $project = Join-Path $PSScriptRoot "src\BedrockAutoCopyInstaller\BedrockAutoCopyInstaller.csproj"
@@ -16,16 +12,8 @@ $arguments = @(
     $project,
     "-c", "Release",
     "-r", "win-x64",
-    "-o", $output,
-    "-p:WindowsAppSDKSelfContained=true",
-    "-p:PublishSingleFile=false"
+    "-o", $output
 )
-
-if ($FrameworkDependent) {
-    $arguments += "-p:SelfContained=false"
-} else {
-    $arguments += "-p:SelfContained=true"
-}
 
 & dotnet @arguments
 if ($LASTEXITCODE -ne 0) {
