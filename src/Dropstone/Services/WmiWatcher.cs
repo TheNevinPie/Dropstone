@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
+using Dropstone.Models;
 
 namespace Dropstone.Services;
 
@@ -11,7 +12,7 @@ internal static class WmiWatcher
 
     public static (bool Ok, string? Warning) Ensure(
         string? versionsDir,
-        IProgress<string>? progress = null,
+        IProgress<ProgressUpdate>? progress = null,
         string? taskName = null)
     {
         if (string.IsNullOrWhiteSpace(versionsDir))
@@ -20,13 +21,13 @@ internal static class WmiWatcher
                 "The event watch was not created because the LeviLauncher versions folder was not known at install time. The payload will still be topped up at logon.");
         }
 
-        progress?.Report("Enabling event watch (approve the Windows prompt)...");
+        progress?.Report(ProgressUpdate.Indeterminate("Enabling event watch (approve the Windows prompt)..."));
         return RunElevated(versionsDir, taskName);
     }
 
-    public static (bool Ok, string? Warning) Remove(IProgress<string>? progress = null)
+    public static (bool Ok, string? Warning) Remove(IProgress<ProgressUpdate>? progress = null)
     {
-        progress?.Report("Removing event watch...");
+        progress?.Report(ProgressUpdate.Indeterminate("Removing event watch..."));
         return RunElevated(versionsDir: null, taskName: null);
     }
 

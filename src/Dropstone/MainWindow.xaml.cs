@@ -1,8 +1,10 @@
 using System.Text;
 using Dropstone.Models;
 using Dropstone.Services;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -19,6 +21,7 @@ public sealed partial class MainWindow : Window
     private string? _payloadUrl;
     private bool _replaceMode;
     private bool _closed;
+    private bool _busy;
 
     public MainWindow()
     {
@@ -27,10 +30,16 @@ public sealed partial class MainWindow : Window
         try
         {
             AppWindow.Resize(new SizeInt32(860, 620));
+            SystemBackdrop = new MicaBackdrop();
+            ExtendsContentIntoTitleBar = true;
+            SetTitleBar(AppHeader);
+            AppWindow.TitleBar.ButtonBackgroundColor = Colors.Transparent;
+            AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+            AppWindow.Closing += (_, args) => args.Cancel = _busy;
         }
         catch
         {
-            // The default window size is still usable.
+            // Window chrome customization is best-effort.
         }
 
         Closed += (_, _) => _closed = true;
@@ -206,6 +215,7 @@ public sealed partial class MainWindow : Window
         _archivePath = null;
         _payloadUrl = null;
         ApplyPresetPayload();
+        ApplyLastArchive();
     }
 
     private void ApplyPresetPayload()
@@ -240,6 +250,36 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void ApplyLastArchive()
+    {
+        if (!_replaceMode || _installed is null || _archivePath is not null || _payloadUrl is not null)
+        {
+            return;
+        }
+
+        var previous = _installed.PayloadArchive;
+        if (string.IsNullOrWhiteSpace(previous))
+        {
+            return;
+        }
+
+        if (Uri.TryCreate(previous, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            _payloadUrl = previous;
+            ArchivePathText.Text = previous;
+            InstallButton.IsEnabled = true;
+            return;
+        }
+
+        if (File.Exists(previous))
+        {
+            _archivePath = previous;
+            ArchivePathText.Text = previous;
+            InstallButton.IsEnabled = true;
+        }
+    }
+
     private void ShowArchiveWithError(string message)
     {
         ShowOnly(ArchivePanel);
@@ -261,6 +301,25 @@ public sealed partial class MainWindow : Window
                 : Visibility.Collapsed;
         }
     }
+
+    private void ApplyProgress(ProgressUpdate update)
+    {
+        ProgressText.Text = update.Message;
+
+        if (update.Percent < 0 || double.IsNaN(update.Percent))
+        {
+            ProgressBar.IsIndeterminate = true;
+            ProgressPercentText.Text = string.Empty;
+            return;
+        }
+
+        ProgressBar.IsIndeterminate = false;
+        ProgressBar.Value = Math.Clamp(update.Percent, 0, 100);
+        ProgressPercentText.Text = $"{Math.Round(update.Percent):0}%";
+    }
+
+    private void SetProgress(string message, double percent) =>
+        ApplyProgress(new ProgressUpdate { Message = message, Percent = percent });
 
     private void ShowResult(string title, string message, bool isError)
     {
@@ -422,16 +481,17 @@ public sealed partial class MainWindow : Window
             : InstallPathBox.Text.Trim();
 
         ShowOnly(ProgressPanel);
-        ProgressText.Text = "Preparing...";
+        SetProgress("Preparing...", ProgressUpdate.IndeterminatePercent);
+        _busy = true;
 
         string? downloadedArchive = null;
         try
         {
-            var progress = new Progress<string>(message => ProgressText.Text = message);
+            var progress = new Progress<ProgressUpdate>(ApplyProgress);
             var archivePath = _archivePath;
             if (archivePath is null)
             {
-                ProgressText.Text = "Downloading payload...";
+                SetProgress("Downloading payload...", ProgressUpdate.IndeterminatePercent);
                 downloadedArchive = await Task.Run(() => PayloadDownloader.Download(new Uri(_payloadUrl!), progress));
                 archivePath = downloadedArchive;
             }
@@ -458,6 +518,8 @@ public sealed partial class MainWindow : Window
                 message += $"{Environment.NewLine}{Environment.NewLine}Warning: {outcome.Warning}";
             }
 
+            SetProgress(ProgressText.Text, 100);
+            _busy = false;
             ShowResult(title, message, isError: false);
 
             if (string.IsNullOrWhiteSpace(outcome.Warning))
@@ -467,6 +529,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception exception)
         {
+            _busy = false;
             ShowArchiveWithError(exception.Message);
         }
         finally
@@ -501,14 +564,17 @@ public sealed partial class MainWindow : Window
         }
 
         ShowOnly(ProgressPanel);
-        ProgressText.Text = "Removing...";
+        SetProgress("Removing...", ProgressUpdate.IndeterminatePercent);
+        _busy = true;
 
         try
         {
             var installDir = _installed.InstallDir;
-            var progress = new Progress<string>(message => ProgressText.Text = message);
+            var progress = new Progress<ProgressUpdate>(ApplyProgress);
             await Task.Run(() => _installer.Uninstall(installDir, progress));
 
+            SetProgress(ProgressText.Text, 100);
+            _busy = false;
             ShowResult(
                 "Uninstalled",
                 "The Dropstone task, settings, and files were removed. LeviLauncher was not touched.",
@@ -517,6 +583,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception exception)
         {
+            _busy = false;
             ShowResult("Uninstall failed", exception.Message, isError: true);
         }
     }

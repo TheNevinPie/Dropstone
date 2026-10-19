@@ -1,4 +1,5 @@
 using System.Net.Http;
+using Dropstone.Models;
 
 namespace Dropstone.Services;
 
@@ -6,7 +7,7 @@ internal static class PayloadDownloader
 {
     private const long MaximumBytes = 2L * 1024 * 1024 * 1024;
 
-    public static string Download(Uri uri, IProgress<string>? progress)
+    public static string Download(Uri uri, IProgress<ProgressUpdate>? progress)
     {
         if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
         {
@@ -61,9 +62,15 @@ internal static class PayloadDownloader
                 output.Write(buffer, 0, read);
                 if (progress is not null && (total - reported >= 1024 * 1024 || total == length))
                 {
-                    progress.Report(length is > 0
-                        ? $"Downloading payload... {total * 100 / length.Value}%"
-                        : $"Downloading payload... {total / (1024 * 1024)} MB");
+                    progress.Report(new ProgressUpdate
+                    {
+                        Message = length is > 0
+                            ? $"Downloading payload... {total / (1024 * 1024)} MB of {length.Value / (1024 * 1024)} MB"
+                            : $"Downloading payload... {total / (1024 * 1024)} MB",
+                        Percent = length is > 0
+                            ? total * 100.0 / length.Value
+                            : ProgressUpdate.IndeterminatePercent
+                    });
                     reported = total;
                 }
             }

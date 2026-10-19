@@ -4,14 +4,14 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Dropstone Installer">
 
-    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <Grid Background="Transparent">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Padding="28,24,28,12" Spacing="4">
+        <StackPanel x:Name="AppHeader" Grid.Row="0" Padding="28,24,28,12" Spacing="4">
             <TextBlock Text="Dropstone" Style="{StaticResource TitleTextBlockStyle}" />
             <TextBlock
                 Text="Deploy your own payload files into LeviLauncher version folders."
@@ -139,8 +139,25 @@
                     <ProgressRing
                         Width="48"
                         Height="48"
-                        HorizontalAlignment="Left"
+                        HorizontalAlignment="Center"
                         IsActive="True" />
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ProgressBar
+                            x:Name="ProgressBar"
+                            VerticalAlignment="Center"
+                            Value="0" />
+                        <TextBlock
+                            x:Name="ProgressPercentText"
+                            Grid.Column="1"
+                            MinWidth="36"
+                            VerticalAlignment="Center"
+                            TextAlignment="Right"
+                            Text="0%" />
+                    </Grid>
                     <TextBlock
                         x:Name="ProgressText"
                         Text="Working..."

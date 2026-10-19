@@ -16,7 +16,7 @@ public sealed class InstallerService
 
     public InstallOutcome Install(
         InstallRequest request,
-        IProgress<string>? progress = null,
+        IProgress<ProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default)
     {
         var installDir = NormalizeInstallDir(request.InstallDir);
@@ -29,7 +29,7 @@ public sealed class InstallerService
 
         Directory.CreateDirectory(installDir);
 
-        progress?.Report("Extracting payload...");
+        Report(progress, "Extracting payload...", 8);
         var payloadDirectory = Path.Combine(installDir, "payload");
         var temporaryPayload = Path.Combine(installDir, ".payload.tmp");
         if (Directory.Exists(temporaryPayload))
@@ -55,10 +55,10 @@ public sealed class InstallerService
         }
         Directory.Move(temporaryPayload, payloadDirectory);
 
-        progress?.Report("Installing logic files...");
+        Report(progress, "Installing logic files...", 30);
         CopyWorkerFiles(installDir);
 
-        progress?.Report("Writing configuration...");
+        Report(progress, "Writing configuration...", 45);
         var configPath = Path.Combine(installDir, "config.ini");
         var config = IniConfig.Read(configPath);
         var versionsDir = FirstNonEmpty(request.VersionsDir, config.GetValueOrDefault("watchdir"));
@@ -73,12 +73,12 @@ public sealed class InstallerService
         }
         IniConfig.Write(configPath, config);
 
-        progress?.Report("Registering scheduled task...");
+        Report(progress, "Registering scheduled task...", 58);
         ScheduledTask.Register(installDir);
 
         var (_, eventWatchWarning) = WmiWatcher.Ensure(versionsDir, progress);
 
-        progress?.Report("Saving installer state...");
+        Report(progress, "Saving installer state...", 75);
         RegistrySettings.Save(installDir);
         var marker = new InstalledMarker
         {
@@ -95,7 +95,7 @@ public sealed class InstallerService
             Path.Combine(installDir, "install.json"),
             JsonSerializer.Serialize(marker, JsonDefaults.Options));
 
-        progress?.Report("Applying payload to existing versions...");
+        Report(progress, "Applying payload to existing versions...", 90);
         var warning = TryRunFirstSync(installDir);
         if (eventWatchWarning is not null)
         {
@@ -111,19 +111,19 @@ public sealed class InstallerService
         };
     }
 
-    public void Uninstall(string installDir, IProgress<string>? progress = null)
+    public void Uninstall(string installDir, IProgress<ProgressUpdate>? progress = null)
     {
         var fullPath = Path.GetFullPath(installDir);
 
-        progress?.Report("Removing scheduled task...");
+        Report(progress, "Removing scheduled task...", 15);
         ScheduledTask.Delete();
 
         WmiWatcher.Remove(progress);
 
-        progress?.Report("Removing settings...");
+        Report(progress, "Removing settings...", 60);
         RegistrySettings.Delete();
 
-        progress?.Report("Deleting files...");
+        Report(progress, "Deleting files...", 85);
         if (Directory.Exists(fullPath))
         {
             Directory.Delete(fullPath, recursive: true);
@@ -230,6 +230,9 @@ public sealed class InstallerService
             return $"The first sync could not run: {exception.Message}";
         }
     }
+
+    private static void Report(IProgress<ProgressUpdate>? progress, string message, double percent) =>
+        progress?.Report(new ProgressUpdate { Message = message, Percent = percent });
 
     private static string? FirstNonEmpty(string? primary, string? fallback) =>
         !string.IsNullOrWhiteSpace(primary) ? primary : fallback;
