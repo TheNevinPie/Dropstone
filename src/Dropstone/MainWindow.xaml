@@ -83,6 +83,11 @@
                         Severity="Success"
                         Title="Dropstone is already installed" />
                     <TextBlock
+                        x:Name="InstalledDescriptionText"
+                        Opacity="0.7"
+                        TextWrapping="Wrap"
+                        Visibility="Collapsed" />
+                    <TextBlock
                         x:Name="InstalledSummaryText"
                         IsTextSelectionEnabled="True"
                         TextWrapping="Wrap" />
@@ -102,6 +107,49 @@
                             Click="Uninstall_Click" />
                         <Button Content="Close" Click="Close_Click" />
                     </StackPanel>
+                </StackPanel>
+
+                <StackPanel x:Name="DirectPanel" Spacing="16" Visibility="Collapsed">
+                    <TextBlock
+                        x:Name="DirectTitleText"
+                        Text="One-click install"
+                        Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <TextBlock
+                        x:Name="DirectDescriptionText"
+                        Text="The install folder and payload are preset in config.ini. Review them below, then install. Windows may ask for administrator approval to register the sync task."
+                        Opacity="0.7"
+                        TextWrapping="Wrap" />
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Install folder" FontWeight="SemiBold" />
+                        <TextBlock
+                            x:Name="DirectInstallPathText"
+                            IsTextSelectionEnabled="True"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Versions folder" FontWeight="SemiBold" />
+                        <TextBlock
+                            x:Name="DirectVersionsText"
+                            IsTextSelectionEnabled="True"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Payload" FontWeight="SemiBold" />
+                        <TextBlock
+                            x:Name="DirectPayloadText"
+                            IsTextSelectionEnabled="True"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <InfoBar
+                        x:Name="DirectErrorBar"
+                        IsClosable="True"
+                        IsOpen="False"
+                        Severity="Error" />
+                    <Button
+                        x:Name="DirectInstallButton"
+                        Content="Install"
+                        Style="{StaticResource AccentButtonStyle}"
+                        Click="DirectInstall_Click" />
                 </StackPanel>
 
                 <StackPanel x:Name="ArchivePanel" Spacing="16" Visibility="Collapsed">

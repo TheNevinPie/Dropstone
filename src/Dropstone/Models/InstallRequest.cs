@@ -8,6 +8,8 @@ public sealed class InstallRequest
     public string? LauncherExe { get; init; }
     public string? VersionsDir { get; init; }
     public bool IsReplace { get; init; }
+    public string? InstalledTitle { get; init; }
+    public string? InstalledDescription { get; init; }
 }
 
 public sealed class InstallOutcome

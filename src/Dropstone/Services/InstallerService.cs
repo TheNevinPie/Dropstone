@@ -89,6 +89,8 @@ public sealed class InstallerService
                 .Count(),
             LauncherExe = launcherExe,
             VersionsDir = versionsDir,
+            InstalledTitle = request.InstalledTitle,
+            InstalledDescription = request.InstalledDescription,
             InstalledAt = DateTimeOffset.Now
         };
         File.WriteAllText(

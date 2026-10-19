@@ -7,5 +7,7 @@ public sealed class InstalledMarker
     public int PayloadFileCount { get; set; }
     public string? LauncherExe { get; set; }
     public string? VersionsDir { get; set; }
+    public string? InstalledTitle { get; set; }
+    public string? InstalledDescription { get; set; }
     public DateTimeOffset InstalledAt { get; set; }
 }

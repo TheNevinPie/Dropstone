@@ -4,6 +4,7 @@ internal enum PayloadMode
 {
     Ask,
     Local,
+    Dll,
     Url
 }
 
@@ -17,8 +18,23 @@ internal sealed class DeploymentConfig
     public string PayloadPath { get; private init; } = string.Empty;
     public Uri? PayloadUri { get; private init; }
     public string? Warning { get; private init; }
+    public string Title { get; private init; } = string.Empty;
+    public string Description { get; private init; } = string.Empty;
+    public string InstalledTitle { get; private init; } = string.Empty;
+    public string InstalledDescription { get; private init; } = string.Empty;
 
     public bool Exists => !string.IsNullOrEmpty(ConfigPath);
+
+    public bool IsDirectInstall =>
+        Exists &&
+        !string.IsNullOrWhiteSpace(InstallDir) &&
+        HasExplicitPayload;
+
+    private bool HasExplicitPayload =>
+        (Mode is PayloadMode.Local or PayloadMode.Dll &&
+         PayloadPath.Length > 0 &&
+         File.Exists(PayloadPath)) ||
+        (Mode == PayloadMode.Url && PayloadUri is not null);
 
     public static DeploymentConfig Load()
     {
@@ -78,24 +94,30 @@ internal sealed class DeploymentConfig
         var payloadPath = ReadPath("payloadpath");
         var payloadUrl = values.GetValueOrDefault("payloadurl", string.Empty).Trim();
         var modeText = values.GetValueOrDefault("payloadmode", string.Empty).Trim();
+        string ReadText(string key) => values.GetValueOrDefault(key, string.Empty).Trim();
 
         var mode = modeText.ToLowerInvariant() switch
         {
             "local" or "file" => PayloadMode.Local,
+            "dll" => PayloadMode.Dll,
             "url" or "http" or "https" => PayloadMode.Url,
             _ => PayloadMode.Ask
         };
 
         string? warning = null;
         Uri? payloadUri = null;
-        if (mode == PayloadMode.Local && payloadPath.Length == 0)
+        if (mode is PayloadMode.Local or PayloadMode.Dll)
         {
-            warning = "payloadMode=local requires payloadPath in config.ini. Choose the payload manually.";
-            mode = PayloadMode.Ask;
-        }
-        else if (mode == PayloadMode.Local && !File.Exists(payloadPath))
-        {
-            warning = $"The preset payload was not found: {payloadPath}";
+            var modeLabel = mode == PayloadMode.Dll ? "dll" : "local";
+            if (payloadPath.Length == 0)
+            {
+                warning = $"payloadMode={modeLabel} requires payloadPath in config.ini. Choose the payload manually.";
+                mode = PayloadMode.Ask;
+            }
+            else if (!File.Exists(payloadPath))
+            {
+                warning = $"The preset payload was not found: {payloadPath}";
+            }
         }
         else if (mode == PayloadMode.Url)
         {
@@ -120,7 +142,11 @@ internal sealed class DeploymentConfig
             Mode = mode,
             PayloadPath = payloadPath,
             PayloadUri = payloadUri,
-            Warning = warning
+            Warning = warning,
+            Title = ReadText("title"),
+            Description = ReadText("description"),
+            InstalledTitle = ReadText("installedtitle"),
+            InstalledDescription = ReadText("installeddescription")
         };
     }
 }

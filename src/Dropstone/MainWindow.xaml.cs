@@ -44,8 +44,22 @@ public sealed partial class MainWindow : Window
         }
 
         Closed += (_, _) => _closed = true;
+        ApplyDirectText();
         ShowDeploymentPreset();
         RefreshState();
+    }
+
+    private void ApplyDirectText()
+    {
+        if (!string.IsNullOrWhiteSpace(_deployment.Title))
+        {
+            DirectTitleText.Text = _deployment.Title;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_deployment.Description))
+        {
+            DirectDescriptionText.Text = _deployment.Description;
+        }
     }
 
     private void ShowDeploymentPreset()
@@ -75,7 +89,7 @@ public sealed partial class MainWindow : Window
         {
             details.Add($"Versions folder: {_deployment.VersionsDir}");
         }
-        if (_deployment.Mode == PayloadMode.Local && !string.IsNullOrWhiteSpace(_deployment.PayloadPath))
+        if ((_deployment.Mode is PayloadMode.Local or PayloadMode.Dll) && !string.IsNullOrWhiteSpace(_deployment.PayloadPath))
         {
             details.Add($"Payload: {_deployment.PayloadPath}");
         }
@@ -133,6 +147,10 @@ public sealed partial class MainWindow : Window
         {
             ShowInstalled();
         }
+        else if (_deployment.IsDirectInstall)
+        {
+            ShowDirect();
+        }
         else
         {
             ShowSetup();
@@ -186,6 +204,14 @@ public sealed partial class MainWindow : Window
 
         ShowOnly(InstalledPanel);
 
+        InstalledInfoBar.Title = string.IsNullOrWhiteSpace(_installed.InstalledTitle)
+            ? "Dropstone is already installed"
+            : _installed.InstalledTitle;
+        InstalledDescriptionText.Text = _installed.InstalledDescription ?? string.Empty;
+        InstalledDescriptionText.Visibility = string.IsNullOrWhiteSpace(_installed.InstalledDescription)
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+
         var summary = new StringBuilder();
         summary.AppendLine($"Install folder: {_installed.InstallDir}");
         summary.AppendLine($"Installed: {_installed.InstalledAt.LocalDateTime:g}");
@@ -202,6 +228,20 @@ public sealed partial class MainWindow : Window
         }
 
         InstalledSummaryText.Text = summary.ToString().TrimEnd();
+    }
+
+    private void ShowDirect()
+    {
+        ShowOnly(DirectPanel);
+        DirectErrorBar.IsOpen = false;
+        DirectInstallPathText.Text = _deployment.InstallDir;
+        DirectPayloadText.Text =
+            _deployment.Mode == PayloadMode.Url && _deployment.PayloadUri is not null
+                ? _deployment.PayloadUri.AbsoluteUri
+                : _deployment.PayloadPath;
+        DirectVersionsText.Text = string.IsNullOrWhiteSpace(_launcher?.VersionsDir)
+            ? "Resolved automatically when the sync runs."
+            : _launcher.VersionsDir;
     }
 
     private void ShowArchive()
@@ -221,7 +261,7 @@ public sealed partial class MainWindow : Window
 
     private void ApplyPresetPayload()
     {
-        if (_deployment.Mode == PayloadMode.Local && !string.IsNullOrWhiteSpace(_deployment.PayloadPath))
+        if ((_deployment.Mode is PayloadMode.Local or PayloadMode.Dll) && !string.IsNullOrWhiteSpace(_deployment.PayloadPath))
         {
             ArchivePathText.Text = _deployment.PayloadPath;
             if (File.Exists(_deployment.PayloadPath))
@@ -294,7 +334,7 @@ public sealed partial class MainWindow : Window
     {
         foreach (var candidate in new FrameworkElement[]
                  {
-                     SetupPanel, InstalledPanel, ArchivePanel, ProgressPanel, ResultPanel
+                     SetupPanel, InstalledPanel, DirectPanel, ArchivePanel, ProgressPanel, ResultPanel
                  })
         {
             candidate.Visibility = ReferenceEquals(candidate, panel)
@@ -482,6 +522,62 @@ public sealed partial class MainWindow : Window
             ? _installed.InstallDir
             : InstallPathBox.Text.Trim();
 
+        await RunInstallAsync(installDir, _replaceMode, ShowArchiveWithError);
+    }
+
+    private async void DirectInstall_Click(object sender, RoutedEventArgs e)
+    {
+        string installDir;
+        try
+        {
+            installDir = NormalizeChosenInstallDir(_deployment.InstallDir);
+            if (File.Exists(installDir))
+            {
+                throw new InvalidOperationException("The install location points to a file.");
+            }
+        }
+        catch (Exception exception)
+        {
+            DirectErrorBar.Message = exception.Message;
+            DirectErrorBar.IsOpen = true;
+            return;
+        }
+
+        _archivePath = _deployment.Mode is PayloadMode.Local or PayloadMode.Dll
+            ? _deployment.PayloadPath
+            : null;
+        _payloadUrl = _deployment.Mode == PayloadMode.Url
+            ? _deployment.PayloadUri?.AbsoluteUri
+            : null;
+        _replaceMode = false;
+
+        await RunInstallAsync(
+            installDir,
+            false,
+            ShowDirectError,
+            _deployment.InstalledTitle,
+            _deployment.InstalledDescription);
+    }
+
+    private void ShowDirectError(string message)
+    {
+        ShowOnly(DirectPanel);
+        DirectErrorBar.Message = message;
+        DirectErrorBar.IsOpen = true;
+    }
+
+    private async Task RunInstallAsync(
+        string installDir,
+        bool isReplace,
+        Action<string> showError,
+        string? installedTitle = null,
+        string? installedDescription = null)
+    {
+        if (_archivePath is null && _payloadUrl is null)
+        {
+            return;
+        }
+
         ShowOnly(ProgressPanel);
         SetProgress("Preparing...", ProgressUpdate.IndeterminatePercent);
         _busy = true;
@@ -505,12 +601,14 @@ public sealed partial class MainWindow : Window
                 PayloadSource = _payloadUrl,
                 LauncherExe = _launcher?.ExePath ?? _installed?.LauncherExe,
                 VersionsDir = _launcher?.VersionsDir ?? _installed?.VersionsDir,
-                IsReplace = _replaceMode
+                IsReplace = isReplace,
+                InstalledTitle = installedTitle,
+                InstalledDescription = installedDescription
             };
 
             var outcome = await Task.Run(() => _installer.Install(request, progress));
 
-            var title = _replaceMode ? "Payload replaced" : "Installed";
+            var title = isReplace ? "Payload replaced" : "Installed";
             var message =
                 $"Payload installed to {Path.GetFullPath(installDir)} ({outcome.PayloadFileCount} file(s)).{Environment.NewLine}" +
                 $"The sync task and event watch were registered, and the payload was applied to existing LeviLauncher versions.";
@@ -532,7 +630,7 @@ public sealed partial class MainWindow : Window
         catch (Exception exception)
         {
             _busy = false;
-            ShowArchiveWithError(exception.Message);
+            showError(exception.Message);
         }
         finally
         {
