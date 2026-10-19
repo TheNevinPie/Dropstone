@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using Dropstone.Models;
 using Dropstone.Services;
@@ -541,6 +542,31 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void OpenPayload_Click(object sender, RoutedEventArgs e)
+    {
+        if (_installed is null)
+        {
+            return;
+        }
+
+        var payloadDirectory = Path.Combine(_installed.InstallDir, "payload");
+        var target = Directory.Exists(payloadDirectory) ? payloadDirectory : _installed.InstallDir;
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"\"{target}\"",
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // The shell could not open the folder.
+        }
+    }
+
     private async void Uninstall_Click(object sender, RoutedEventArgs e)
     {
         if (_installed is null)
@@ -548,11 +574,59 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        var deployedFiles = DeployedPayloadScanner.Scan(_installed.InstallDir, _installed.VersionsDir);
+
+        var dialogContent = new StackPanel { Spacing = 12 };
+        dialogContent.Children.Add(new TextBlock
+        {
+            Text = "This removes the logic files, payload, scheduled task, and settings. LeviLauncher itself is not touched.",
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        var fileChoices = new List<(CheckBox Box, DeployedPayloadFile File)>();
+        var removeRequested = false;
+        if (deployedFiles.Count > 0)
+        {
+            var fileList = new StackPanel { Spacing = 4, Visibility = Visibility.Collapsed };
+            foreach (var deployedFile in deployedFiles)
+            {
+                var box = new CheckBox
+                {
+                    Content = $"{deployedFile.RelativePath} ({deployedFile.Locations.Count} version folder(s))",
+                    IsChecked = true
+                };
+                fileChoices.Add((box, deployedFile));
+                fileList.Children.Add(box);
+            }
+
+            var removeToggle = new CheckBox
+            {
+                Content = "Also remove the deployed payload files from the version folders"
+            };
+            removeToggle.Checked += (_, _) =>
+            {
+                removeRequested = true;
+                fileList.Visibility = Visibility.Visible;
+            };
+            removeToggle.Unchecked += (_, _) =>
+            {
+                removeRequested = false;
+                fileList.Visibility = Visibility.Collapsed;
+            };
+
+            dialogContent.Children.Add(removeToggle);
+            dialogContent.Children.Add(new ScrollViewer
+            {
+                MaxHeight = 220,
+                Content = fileList
+            });
+        }
+
         var dialog = new ContentDialog
         {
             XamlRoot = Content.XamlRoot,
             Title = "Uninstall Dropstone?",
-            Content = "This removes the logic files, payload, scheduled task, and settings. LeviLauncher itself is not touched.",
+            Content = dialogContent,
             PrimaryButtonText = "Uninstall",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Close
@@ -563,6 +637,13 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        var selectedFiles = removeRequested
+            ? fileChoices
+                .Where(choice => choice.Box.IsChecked == true)
+                .Select(choice => choice.File)
+                .ToList()
+            : new List<DeployedPayloadFile>();
+
         ShowOnly(ProgressPanel);
         SetProgress("Removing...", ProgressUpdate.IndeterminatePercent);
         _busy = true;
@@ -571,14 +652,26 @@ public sealed partial class MainWindow : Window
         {
             var installDir = _installed.InstallDir;
             var progress = new Progress<ProgressUpdate>(ApplyProgress);
-            await Task.Run(() => _installer.Uninstall(installDir, progress));
+            var removedCount = await Task.Run(() =>
+            {
+                _installer.Uninstall(installDir, progress);
+                return selectedFiles.Count == 0
+                    ? 0
+                    : DeployedPayloadScanner.Remove(selectedFiles, progress);
+            });
 
             SetProgress(ProgressText.Text, 100);
             _busy = false;
-            ShowResult(
-                "Uninstalled",
-                "The Dropstone task, settings, and files were removed. LeviLauncher was not touched.",
-                isError: false);
+
+            var message =
+                "The Dropstone task, settings, and files were removed. LeviLauncher itself was not touched.";
+            if (removedCount > 0)
+            {
+                message +=
+                    $"{Environment.NewLine}{removedCount} deployed payload file(s) were removed from the version folders.";
+            }
+
+            ShowResult("Uninstalled", message, isError: false);
             await CloseAfterDelayAsync();
         }
         catch (Exception exception)

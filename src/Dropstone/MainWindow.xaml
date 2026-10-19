@@ -93,6 +93,10 @@
                             Style="{StaticResource AccentButtonStyle}"
                             Click="Replace_Click" />
                         <Button
+                            x:Name="OpenPayloadButton"
+                            Content="Open payload folder"
+                            Click="OpenPayload_Click" />
+                        <Button
                             x:Name="UninstallButton"
                             Content="Uninstall"
                             Click="Uninstall_Click" />
