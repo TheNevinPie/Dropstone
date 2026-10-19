@@ -55,7 +55,7 @@
                                 Click="BrowseInstall_Click" />
                         </Grid>
                         <TextBlock
-                            Text="The logic files are copied here and the extracted archive is kept in a 'payload' subfolder."
+                            Text="The logic files are copied here and the payload is kept in a 'payload' subfolder."
                             Opacity="0.7"
                             TextWrapping="Wrap" />
                     </StackPanel>
@@ -110,13 +110,13 @@
                         Text="Choose payload source"
                         Style="{StaticResource SubtitleTextBlockStyle}" />
                     <TextBlock
-                        Text="Select a .zip or .rar containing the files to deploy, or use the payload preset in config.ini. The archive is extracted into the install folder's 'payload' directory."
+                        Text="Select a .zip or .rar containing the files to deploy, or a single .dll. Archives are extracted into the install folder's 'payload' directory, and a .dll is copied there directly. You can also use the payload preset in config.ini."
                         Opacity="0.7"
                         TextWrapping="Wrap" />
-                    <Button Content="Browse for archive..." Click="BrowseArchive_Click" />
+                    <Button Content="Browse for payload..." Click="BrowseArchive_Click" />
                     <TextBlock
                         x:Name="ArchivePathText"
-                        Text="No archive selected."
+                        Text="No payload selected."
                         IsTextSelectionEnabled="True"
                         TextWrapping="Wrap" />
                     <InfoBar

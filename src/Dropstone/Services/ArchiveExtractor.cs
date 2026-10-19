@@ -5,22 +5,31 @@ namespace Dropstone.Services;
 
 internal static class ArchiveExtractor
 {
-    private static readonly string[] SupportedExtensions = { ".zip", ".rar" };
+    private static readonly string[] SupportedExtensions = { ".zip", ".rar", ".dll" };
 
     public static void Extract(string archivePath, string destinationDirectory, CancellationToken cancellationToken)
     {
         if (!File.Exists(archivePath))
         {
-            throw new FileNotFoundException("The selected archive no longer exists.", archivePath);
+            throw new FileNotFoundException("The selected payload file no longer exists.", archivePath);
         }
 
         var extension = Path.GetExtension(archivePath);
         if (!SupportedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Only .zip and .rar archives are supported.");
+            throw new InvalidOperationException("Only .zip and .rar archives and .dll files are supported.");
         }
 
         Directory.CreateDirectory(destinationDirectory);
+
+        if (extension.Equals(".dll", StringComparison.OrdinalIgnoreCase))
+        {
+            File.Copy(
+                archivePath,
+                Path.Combine(destinationDirectory, Path.GetFileName(archivePath)),
+                overwrite: true);
+            return;
+        }
 
         var root = Path.GetFullPath(destinationDirectory);
         var rootPrefix = root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;

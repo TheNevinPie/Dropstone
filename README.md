@@ -2,7 +2,7 @@
 
 A portable WinUI 3 installer for a small Windows tool that keeps **your own payload files** present in LeviLauncher version folders.
 
-The installer ships **tooling only**. It does not include, download, or promote any game files, DLLs, or third-party payloads. You choose a local `.zip`/`.rar` archive or configure a payload URL.
+The installer ships **tooling only**. It does not include, download, or promote any game files, DLLs, or third-party payloads. You choose a local `.zip`/`.rar` archive or a single `.dll`, or configure a payload URL.
 
 ## Download
 
@@ -12,8 +12,8 @@ Get the latest release from [github.com/TheNevinPie/Dropstone/releases](https://
 
 1. Dropstone detects LeviLauncher (known install paths, uninstall registry entries, running processes, and the launcher's `config.json`).
 2. It checks whether Dropstone is already installed under `%LOCALAPPDATA%\Dropstone`.
-3. On a fresh install it asks for an install folder, then for a payload archive.
-4. The archive is extracted to `<install folder>\payload` and the worker files are copied next to it.
+3. On a fresh install it asks for an install folder, then for a payload (archive or `.dll`).
+4. The payload is extracted (or the `.dll` copied) to `<install folder>\payload` and the worker files are copied next to it.
 5. A per-user scheduled task runs a single-pass sync at logon and after app package deployment events. A WMI event watch also runs the sync whenever the LeviLauncher `versions` folder changes, so a newly installed version folder is topped up within seconds. A manual `SyncNow.cmd` is also provided.
 6. On the next launch, the installer offers **Replace payload** or **Uninstall** instead.
 
@@ -38,7 +38,7 @@ payloadurl=https://example.com/payload.zip
 | `launcherexe` | Optional LeviLauncher executable to skip detection. |
 | `versionsdir` | Optional LeviLauncher `versions` folder. |
 | `payloadmode` | `ask`, `local`, or `url`. |
-| `payloadpath` | Payload archive for `local` mode. Relative paths resolve against the config file. |
+| `payloadpath` | Payload archive or `.dll` for `local` mode. Relative paths resolve against the config file. |
 | `payloadurl` | Absolute `http`/`https` payload URL for `url` mode. |
 
 The preset only prefills the UI; the user still confirms the install. Presets do not bypass the payload/security rules. URL downloads are limited to 2 GB and run with a 10-minute timeout.
@@ -66,7 +66,7 @@ The build publishes `publish\Dropstone.exe` and `publish\config.ini`, then creat
 2. Optionally edit `config.ini` next to `Dropstone.exe`.
 3. Run `Dropstone.exe` and confirm the detected LeviLauncher path (or locate `LeviLauncher.exe` manually).
 4. Choose the install folder. The default is `%LOCALAPPDATA%\Dropstone`.
-5. Choose a payload archive, or use the payload configured in `config.ini`.
+5. Choose a payload archive or `.dll`, or use the payload configured in `config.ini`.
 6. Click **Install**. During the install Windows shows one elevation prompt ("Windows PowerShell") for the event watch; Dropstone extracts the payload, registers the task, applies the payload to existing versions, and closes. If the prompt is declined, Dropstone finishes anyway and falls back to logon-triggered syncs.
 
 ## Installed files

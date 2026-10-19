@@ -90,7 +90,7 @@ internal sealed class DeploymentConfig
         Uri? payloadUri = null;
         if (mode == PayloadMode.Local && payloadPath.Length == 0)
         {
-            warning = "payloadMode=local requires payloadPath in config.ini. Choose the archive manually.";
+            warning = "payloadMode=local requires payloadPath in config.ini. Choose the payload manually.";
             mode = PayloadMode.Ask;
         }
         else if (mode == PayloadMode.Local && !File.Exists(payloadPath))
@@ -106,7 +106,7 @@ internal sealed class DeploymentConfig
             }
             else
             {
-                warning = "payloadMode=url requires an absolute http/https payloadUrl in config.ini. Choose the archive manually.";
+                warning = "payloadMode=url requires an absolute http/https payloadUrl in config.ini. Choose the payload manually.";
                 mode = PayloadMode.Ask;
             }
         }

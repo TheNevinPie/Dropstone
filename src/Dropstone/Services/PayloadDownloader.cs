@@ -34,7 +34,8 @@ internal static class PayloadDownloader
 
         var extension = Path.GetExtension(uri.AbsolutePath);
         if (!extension.Equals(".zip", StringComparison.OrdinalIgnoreCase) &&
-            !extension.Equals(".rar", StringComparison.OrdinalIgnoreCase))
+            !extension.Equals(".rar", StringComparison.OrdinalIgnoreCase) &&
+            !extension.Equals(".dll", StringComparison.OrdinalIgnoreCase))
         {
             extension = ".zip";
         }

@@ -198,7 +198,7 @@ public sealed partial class MainWindow : Window
 
         if (!string.IsNullOrWhiteSpace(_installed.PayloadArchive))
         {
-            summary.AppendLine($"Source archive: {_installed.PayloadArchive}");
+            summary.AppendLine($"Source: {_installed.PayloadArchive}");
         }
 
         InstalledSummaryText.Text = summary.ToString().TrimEnd();
@@ -210,7 +210,7 @@ public sealed partial class MainWindow : Window
         ArchiveTitleText.Text = _replaceMode ? "Choose replacement payload" : "Choose payload source";
         ArchiveErrorBar.IsOpen = false;
         ArchiveErrorBar.Severity = InfoBarSeverity.Error;
-        ArchivePathText.Text = "No archive selected.";
+        ArchivePathText.Text = "No payload selected.";
         InstallButton.Content = _replaceMode ? "Replace payload" : "Install";
         InstallButton.IsEnabled = false;
         _archivePath = null;
@@ -429,6 +429,7 @@ public sealed partial class MainWindow : Window
         };
         picker.FileTypeFilter.Add(".zip");
         picker.FileTypeFilter.Add(".rar");
+        picker.FileTypeFilter.Add(".dll");
         InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
 
         var file = await picker.PickSingleFileAsync();

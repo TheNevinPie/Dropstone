@@ -24,7 +24,7 @@ public sealed class InstallerService
 
         if (!File.Exists(archivePath))
         {
-            throw new FileNotFoundException("The selected archive no longer exists.", archivePath);
+            throw new FileNotFoundException("The selected payload file no longer exists.", archivePath);
         }
 
         Directory.CreateDirectory(installDir);
