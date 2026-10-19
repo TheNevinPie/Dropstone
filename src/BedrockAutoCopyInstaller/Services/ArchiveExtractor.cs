@@ -1,7 +1,7 @@
 using SharpCompress.Archives;
 using SharpCompress.Readers;
 
-namespace LeviLauncherAutoCopyInstaller.Services;
+namespace BedrockAutoCopyInstaller.Services;
 
 internal static class ArchiveExtractor
 {

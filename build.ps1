@@ -4,7 +4,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$project = Join-Path $PSScriptRoot "src\LeviLauncherAutoCopyInstaller\LeviLauncherAutoCopyInstaller.csproj"
+$project = Join-Path $PSScriptRoot "src\BedrockAutoCopyInstaller\BedrockAutoCopyInstaller.csproj"
 $output = Join-Path $PSScriptRoot "publish"
 
 if (Test-Path -LiteralPath $output) {
@@ -34,4 +34,4 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host ""
 Write-Host "Published to $output"
-Write-Host "Run: $(Join-Path $output 'LeviLauncherAutoCopyInstaller.exe')"
+Write-Host "Run: $(Join-Path $output 'BedrockAutoCopyInstaller.exe')"

@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.Text.Json;
-using LeviLauncherAutoCopyInstaller.Models;
+using BedrockAutoCopyInstaller.Models;
 
-namespace LeviLauncherAutoCopyInstaller.Services;
+namespace BedrockAutoCopyInstaller.Services;
 
 public sealed class InstallerService
 {

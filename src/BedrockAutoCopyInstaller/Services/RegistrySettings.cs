@@ -1,10 +1,10 @@
 using Microsoft.Win32;
 
-namespace LeviLauncherAutoCopyInstaller.Services;
+namespace BedrockAutoCopyInstaller.Services;
 
 internal static class RegistrySettings
 {
-    public const string KeyPath = @"Software\LeviLauncher-AutoCopy";
+    public const string KeyPath = @"Software\Bedrock-AutoCopy";
 
     public static void Save(string installDir)
     {

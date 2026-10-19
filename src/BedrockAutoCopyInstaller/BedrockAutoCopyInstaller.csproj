@@ -3,7 +3,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
-    <RootNamespace>LeviLauncherAutoCopyInstaller</RootNamespace>
+    <RootNamespace>BedrockAutoCopyInstaller</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x64</Platforms>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -15,8 +15,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <AssemblyName>LeviLauncherAutoCopyInstaller</AssemblyName>
-    <ApplicationTitle>LeviLauncher AutoCopy Installer</ApplicationTitle>
+    <AssemblyName>BedrockAutoCopyInstaller</AssemblyName>
+    <ApplicationTitle>Bedrock AutoCopy Installer</ApplicationTitle>
     <Version>0.1.0</Version>
   </PropertyGroup>
 

@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace LeviLauncherAutoCopyInstaller.Services;
+namespace BedrockAutoCopyInstaller.Services;
 
 internal static class IniConfig
 {
@@ -38,7 +38,7 @@ internal static class IniConfig
     {
         var lines = new List<string>
         {
-            "# LeviLauncher AutoCopy configuration.",
+            "# Bedrock AutoCopy configuration.",
             "# watchDir: the LeviLauncher 'versions' folder.",
             "# launcherExe: path to LeviLauncher.exe."
         };

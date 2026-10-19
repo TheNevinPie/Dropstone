@@ -1,15 +1,15 @@
 using System.Text.Json;
-using LeviLauncherAutoCopyInstaller.Models;
+using BedrockAutoCopyInstaller.Models;
 using Microsoft.Win32;
 
-namespace LeviLauncherAutoCopyInstaller.Services;
+namespace BedrockAutoCopyInstaller.Services;
 
 public static class InstalledStateDetector
 {
     public static string DefaultInstallDir =>
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "LeviLauncher-AutoCopy");
+            "Bedrock-AutoCopy");
 
     public static InstalledMarker? Detect()
     {

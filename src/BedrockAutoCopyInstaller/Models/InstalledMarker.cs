@@ -1,4 +1,4 @@
-namespace LeviLauncherAutoCopyInstaller.Models;
+namespace BedrockAutoCopyInstaller.Models;
 
 public sealed class InstalledMarker
 {

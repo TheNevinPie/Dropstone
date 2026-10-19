@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Text.Json;
-using LeviLauncherAutoCopyInstaller.Models;
+using BedrockAutoCopyInstaller.Models;
 using Microsoft.Win32;
 
-namespace LeviLauncherAutoCopyInstaller.Services;
+namespace BedrockAutoCopyInstaller.Services;
 
 public static class LauncherDetector
 {

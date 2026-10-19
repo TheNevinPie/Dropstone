@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace LeviLauncherAutoCopyInstaller.Services;
+namespace BedrockAutoCopyInstaller.Services;
 
 internal static class JsonDefaults
 {

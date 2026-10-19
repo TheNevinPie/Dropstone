@@ -1,13 +1,13 @@
 using System.Text;
-using LeviLauncherAutoCopyInstaller.Models;
-using LeviLauncherAutoCopyInstaller.Services;
+using BedrockAutoCopyInstaller.Models;
+using BedrockAutoCopyInstaller.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Windows.Graphics;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 
-namespace LeviLauncherAutoCopyInstaller;
+namespace BedrockAutoCopyInstaller;
 
 public sealed partial class MainWindow : Window
 {
@@ -357,7 +357,7 @@ public sealed partial class MainWindow : Window
         var dialog = new ContentDialog
         {
             XamlRoot = Content.XamlRoot,
-            Title = "Uninstall LeviLauncher AutoCopy?",
+            Title = "Uninstall Bedrock AutoCopy?",
             Content = "This removes the logic files, payload, scheduled task, and settings. LeviLauncher itself is not touched.",
             PrimaryButtonText = "Uninstall",
             CloseButtonText = "Cancel",

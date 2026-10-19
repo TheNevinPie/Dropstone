@@ -2,11 +2,11 @@ using System.Diagnostics;
 using System.Security;
 using System.Text;
 
-namespace LeviLauncherAutoCopyInstaller.Services;
+namespace BedrockAutoCopyInstaller.Services;
 
 internal static class ScheduledTask
 {
-    public const string TaskName = "LeviLauncher AutoCopy Sync";
+    public const string TaskName = "Bedrock AutoCopy Sync";
 
     public static void Register(string installDir)
     {
@@ -25,7 +25,7 @@ internal static class ScheduledTask
 
         var xmlPath = Path.Combine(
             Path.GetTempPath(),
-            $"LeviLauncherAutoCopySync_{Guid.NewGuid():N}.xml");
+            $"BedrockAutoCopySync_{Guid.NewGuid():N}.xml");
 
         try
         {
@@ -101,7 +101,7 @@ internal static class ScheduledTask
 <?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
-    <Description>One-shot top-up of the LeviLauncher AutoCopy payload at logon and after app package deployment events. Source: https://github.com/TheNevinPie/LeviLauncher-AutoCopy</Description>
+    <Description>One-shot top-up of the Bedrock AutoCopy payload at logon and after app package deployment events. Source: https://github.com/TheNevinPie/Bedrock-AutoCopy</Description>
   </RegistrationInfo>
   <Triggers>
     <LogonTrigger>

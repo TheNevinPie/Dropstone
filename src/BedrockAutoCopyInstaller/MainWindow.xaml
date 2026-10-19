@@ -1,8 +1,8 @@
 <Window
-    x:Class="LeviLauncherAutoCopyInstaller.MainWindow"
+    x:Class="BedrockAutoCopyInstaller.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="LeviLauncher AutoCopy Installer">
+    Title="Bedrock AutoCopy Installer">
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.RowDefinitions>
@@ -12,7 +12,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Padding="28,24,28,12" Spacing="4">
-            <TextBlock Text="LeviLauncher AutoCopy" Style="{StaticResource TitleTextBlockStyle}" />
+            <TextBlock Text="Bedrock AutoCopy" Style="{StaticResource TitleTextBlockStyle}" />
             <TextBlock
                 Text="Deploy your own payload files into LeviLauncher version folders."
                 Opacity="0.7"

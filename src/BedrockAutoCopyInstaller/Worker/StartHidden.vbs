@@ -1,4 +1,4 @@
-' LeviLauncher AutoCopy - hidden PowerShell runner.
+' Bedrock AutoCopy - hidden PowerShell runner.
 ' Runs a PowerShell script with no visible window (used by the scheduled task).
 '
 ' Usage:

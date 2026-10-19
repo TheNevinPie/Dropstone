@@ -1,6 +1,6 @@
 using Microsoft.UI.Xaml;
 
-namespace LeviLauncherAutoCopyInstaller;
+namespace BedrockAutoCopyInstaller;
 
 public partial class App : Application
 {

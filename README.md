@@ -1,4 +1,4 @@
-# LeviLauncher AutoCopy
+# Bedrock AutoCopy
 
 A portable WinUI 3 installer for a small Windows tool that keeps **your own payload files** present in LeviLauncher version folders.
 
@@ -27,7 +27,7 @@ The sync copies payload files into each LeviLauncher version folder that does no
 .\build.ps1
 ```
 
-The portable build is written to `publish\`. Run `publish\LeviLauncherAutoCopyInstaller.exe`.
+The portable build is written to `publish\`. Run `publish\BedrockAutoCopyInstaller.exe`.
 
 For a smaller framework-dependent build:
 
@@ -37,9 +37,9 @@ For a smaller framework-dependent build:
 
 ## Install
 
-1. Run `LeviLauncherAutoCopyInstaller.exe`.
+1. Run `BedrockAutoCopyInstaller.exe`.
 2. Confirm the detected LeviLauncher path (or locate `LeviLauncher.exe` manually).
-3. Choose the install folder. The default is `%LOCALAPPDATA%\LeviLauncher-AutoCopy`.
+3. Choose the install folder. The default is `%LOCALAPPDATA%\Bedrock-AutoCopy`.
 4. Choose a `.zip` or `.rar` payload archive.
 5. Click **Install**. The installer extracts the payload, registers the task, applies the payload to existing versions, and closes.
 
@@ -56,7 +56,7 @@ For a smaller framework-dependent build:
 | `install.json` | Installer state used to detect an existing install |
 | `sync_log.txt` | Created when the sync has something to report |
 
-The scheduled task is named `LeviLauncher AutoCopy Sync`. It runs as the current user with least privilege.
+The scheduled task is named `Bedrock AutoCopy Sync`. It runs as the current user with least privilege.
 
 ## Uninstall
 
@@ -72,7 +72,7 @@ Run the installer again and choose **Uninstall**. This removes the scheduled tas
 ## Repository layout
 
 ```
-src/LeviLauncherAutoCopyInstaller/   WinUI 3 installer
+src/BedrockAutoCopyInstaller/   WinUI 3 installer
   Worker/                            files copied into the install folder
 build.ps1                            portable publish script
 ```

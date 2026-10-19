@@ -1,4 +1,4 @@
-namespace LeviLauncherAutoCopyInstaller.Models;
+namespace BedrockAutoCopyInstaller.Models;
 
 public sealed record LauncherInfo(string? ExePath, string? VersionsDir)
 {
