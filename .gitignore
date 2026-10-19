@@ -1,0 +1,8 @@
+.vs/
+bin/
+obj/
+publish/
+*.user
+*.suo
+*.log
+sync_log.txt
