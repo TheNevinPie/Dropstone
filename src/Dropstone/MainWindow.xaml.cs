@@ -451,7 +451,7 @@ public sealed partial class MainWindow : Window
             var title = _replaceMode ? "Payload replaced" : "Installed";
             var message =
                 $"Payload installed to {Path.GetFullPath(installDir)} ({outcome.PayloadFileCount} file(s)).{Environment.NewLine}" +
-                $"The sync task was registered and the payload was applied to existing LeviLauncher versions.";
+                $"The sync task and event watch were registered, and the payload was applied to existing LeviLauncher versions.";
 
             if (!string.IsNullOrWhiteSpace(outcome.Warning))
             {

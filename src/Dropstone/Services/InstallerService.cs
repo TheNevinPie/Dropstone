@@ -76,6 +76,8 @@ public sealed class InstallerService
         progress?.Report("Registering scheduled task...");
         ScheduledTask.Register(installDir);
 
+        var (_, eventWatchWarning) = WmiWatcher.Ensure(versionsDir, progress);
+
         progress?.Report("Saving installer state...");
         RegistrySettings.Save(installDir);
         var marker = new InstalledMarker
@@ -95,6 +97,12 @@ public sealed class InstallerService
 
         progress?.Report("Applying payload to existing versions...");
         var warning = TryRunFirstSync(installDir);
+        if (eventWatchWarning is not null)
+        {
+            warning = warning is null
+                ? eventWatchWarning
+                : $"{warning} {eventWatchWarning}";
+        }
 
         return new InstallOutcome
         {
@@ -109,6 +117,8 @@ public sealed class InstallerService
 
         progress?.Report("Removing scheduled task...");
         ScheduledTask.Delete();
+
+        WmiWatcher.Remove(progress);
 
         progress?.Report("Removing settings...");
         RegistrySettings.Delete();
