@@ -9,6 +9,12 @@ public static class LauncherDetector
 {
     private static readonly string[] ProcessNames = { "LeviLauncher", "launcher-x64" };
 
+    private static readonly string[] VersionMarkers =
+    {
+        "Minecraft.Windows.exe",
+        "Minecraft.Win10.DX11.exe"
+    };
+
     public static LauncherInfo? Detect()
     {
         foreach (var exePath in GetKnownExePaths())
@@ -31,7 +37,7 @@ public static class LauncherDetector
             return FromExe(runningExe);
         }
 
-        var versionsDir = FindVersionsFromLauncherConfig() ?? FindDefaultVersionsDir();
+        var versionsDir = FindVersionsDir(exePath: null);
         return versionsDir is null ? null : new LauncherInfo(null, versionsDir);
     }
 
@@ -165,25 +171,116 @@ public static class LauncherDetector
         return null;
     }
 
-    private static string? FindVersionsDir(string exePath)
+    /// <summary>
+    /// Resolves the LeviLauncher 'versions' folder. The order matches the
+    /// worker's resolution order (Sync.ps1) so both agree on the same folder:
+    ///   1. the folder next to the launcher executable - the executable is the
+    ///      ground truth for a portable installation
+    ///   2. the launcher's own config.json (base_root)
+    ///   3. %APPDATA%\levilauncher.exe\versions
+    ///   4. %LOCALAPPDATA%\levilauncher.exe\versions
+    ///   5. a running LeviLauncher process
+    ///   6. a bounded scan of the drive roots (portable installs)
+    /// A folder that already contains a game version wins over one that is
+    /// still empty, but an empty folder is accepted when nothing better exists.
+    /// </summary>
+    private static string? FindVersionsDir(string? exePath)
     {
-        var fromConfig = FindVersionsFromLauncherConfig();
-        if (fromConfig is not null)
-        {
-            return fromConfig;
-        }
+        var candidates = new List<string>();
 
-        var exeDirectory = Path.GetDirectoryName(exePath);
-        if (!string.IsNullOrWhiteSpace(exeDirectory))
+        if (!string.IsNullOrWhiteSpace(exePath))
         {
-            var besideExe = Path.Combine(exeDirectory, "versions");
-            if (Directory.Exists(besideExe))
+            var exeDirectory = Path.GetDirectoryName(exePath);
+            if (!string.IsNullOrWhiteSpace(exeDirectory))
             {
-                return besideExe;
+                AddCandidate(candidates, Path.Combine(exeDirectory, "versions"));
             }
         }
 
-        return FindDefaultVersionsDir();
+        AddCandidate(candidates, FindVersionsFromLauncherConfig());
+
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        if (!string.IsNullOrWhiteSpace(appData))
+        {
+            AddCandidate(candidates, Path.Combine(appData, "levilauncher.exe", "versions"));
+        }
+
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (!string.IsNullOrWhiteSpace(localAppData))
+        {
+            AddCandidate(candidates, Path.Combine(localAppData, "levilauncher.exe", "versions"));
+        }
+
+        var runningExe = FindRunningExe();
+        if (!string.IsNullOrWhiteSpace(runningExe))
+        {
+            var runningDirectory = Path.GetDirectoryName(runningExe);
+            if (!string.IsNullOrWhiteSpace(runningDirectory))
+            {
+                AddCandidate(candidates, Path.Combine(runningDirectory, "versions"));
+            }
+        }
+
+        AddCandidate(candidates, FindPortableVersions());
+
+        foreach (var candidate in candidates)
+        {
+            if (LooksLikeVersionsDir(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return candidates.FirstOrDefault();
+    }
+
+    private static void AddCandidate(List<string> candidates, string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        try
+        {
+            if (!Directory.Exists(path))
+            {
+                return;
+            }
+
+            var trimmed = path.TrimEnd(Path.DirectorySeparatorChar);
+            if (!candidates.Contains(trimmed, StringComparer.OrdinalIgnoreCase))
+            {
+                candidates.Add(trimmed);
+            }
+        }
+        catch
+        {
+            // Ignore unusable candidates.
+        }
+    }
+
+    private static bool LooksLikeVersionsDir(string path)
+    {
+        try
+        {
+            foreach (var child in Directory.EnumerateDirectories(path))
+            {
+                foreach (var marker in VersionMarkers)
+                {
+                    if (File.Exists(Path.Combine(child, marker)))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Ignore.
+        }
+
+        return false;
     }
 
     private static string? FindVersionsFromLauncherConfig()
@@ -208,11 +305,7 @@ public static class LauncherDetector
                 var baseRoot = baseRootElement.GetString();
                 if (!string.IsNullOrWhiteSpace(baseRoot))
                 {
-                    var versionsDir = Path.Combine(baseRoot, "versions");
-                    if (Directory.Exists(versionsDir))
-                    {
-                        return versionsDir;
-                    }
+                    return Path.Combine(baseRoot, "versions");
                 }
             }
         }
@@ -224,25 +317,66 @@ public static class LauncherDetector
         return null;
     }
 
-    private static string? FindDefaultVersionsDir()
+    /// <summary>
+    /// Bounded scan of the drive roots for a portable LeviLauncher. Mirrors
+    /// Find-PortableVersions in Sync.ps1.
+    /// </summary>
+    private static string? FindPortableVersions()
     {
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        if (!string.IsNullOrWhiteSpace(appData))
+        var skip = new[]
         {
-            var appDataVersions = Path.Combine(appData, "levilauncher.exe", "versions");
-            if (Directory.Exists(appDataVersions))
-            {
-                return appDataVersions;
-            }
-        }
+            "Windows", "Program Files", "Program Files (x86)", "ProgramData",
+            "$Recycle.Bin", "System Volume Information", "Recovery"
+        };
 
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (!string.IsNullOrWhiteSpace(localAppData))
+        foreach (var drive in DriveInfo.GetDrives())
         {
-            var localVersions = Path.Combine(localAppData, "levilauncher.exe", "versions");
-            if (Directory.Exists(localVersions))
+            if (!drive.IsReady || drive.DriveType == DriveType.Network)
             {
-                return localVersions;
+                continue;
+            }
+
+            var root = drive.RootDirectory.FullName;
+            var bases = new List<string> { root };
+
+            DirectoryInfo[] topDirectories;
+            try
+            {
+                topDirectories = new DirectoryInfo(root)
+                    .GetDirectories()
+                    .Where(directory => !skip.Contains(
+                        directory.Name,
+                        StringComparer.OrdinalIgnoreCase))
+                    .ToArray();
+            }
+            catch
+            {
+                continue;
+            }
+
+            bases.AddRange(topDirectories.Select(directory => directory.FullName));
+            foreach (var top in topDirectories)
+            {
+                try
+                {
+                    bases.AddRange(top.GetDirectories().Select(directory => directory.FullName));
+                }
+                catch
+                {
+                    // Ignore unreadable folders.
+                }
+            }
+
+            foreach (var basePath in bases)
+            {
+                foreach (var folderName in new[] { "levilauncher.exe", "levilauncher" })
+                {
+                    var candidate = Path.Combine(basePath, folderName, "versions");
+                    if (Directory.Exists(candidate))
+                    {
+                        return candidate;
+                    }
+                }
             }
         }
 

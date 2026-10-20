@@ -1,5 +1,7 @@
 # Dropstone
 
+> **Alpha software.** Dropstone is under active development. Expect rough edges and breaking changes between releases. Review any payload before deploying it and keep backups of files you care about.
+
 A portable WinUI 3 installer for a small Windows tool that keeps **your own payload files** present in LeviLauncher version folders.
 
 The installer ships **tooling only**. It does not include, download, or promote any game files, DLLs, or third-party payloads. You choose a local `.zip`/`.rar` archive or a single `.dll`, or configure a payload URL.
@@ -17,7 +19,35 @@ Get the latest release from [github.com/TheNevinPie/Dropstone/releases](https://
 5. A per-user scheduled task runs a single-pass sync at logon and after app package deployment events. A WMI event watch also runs the sync whenever the LeviLauncher `versions` folder changes, so a newly installed version folder is topped up within seconds. A manual `SyncNow.cmd` is also provided.
 6. On the next launch, the installer offers **Replace payload** or **Uninstall** instead.
 
-The sync copies payload files into each LeviLauncher version folder that does not already contain them, preserving relative paths. Existing files are not overwritten, so it behaves as an idempotent top-up.
+The sync copies payload files into each LeviLauncher version folder that does not already contain them, preserving relative paths.
+
+### What the sync does with a file that already exists
+
+| Situation | Behaviour |
+| --- | --- |
+| The file does not exist | It is copied (and recorded in `deployed.json`). |
+| The file exists with a **different size** | It is treated as an incomplete or stale copy and is **repaired**. |
+| The file exists with the **same size** | It is left alone - a foreign file is never overwritten. |
+| `Sync.ps1 -Force` | Every payload file is overwritten. |
+| `Sync.ps1 -VerifyHash` | Files of the same size are compared by SHA256 and replaced when they differ. |
+
+A copy is verified after it was written; an incomplete copy is deleted right away, so a truncated file can never survive a sync. The installer applies the payload with `-Force`, because the user picked that payload in that moment.
+
+### The `versions` folder is never re-targeted silently
+
+The folder configured in `config.ini` (`watchDir`) is **authoritative**. If it no longer exists, the sync stops with an error instead of looking for a different LeviLauncher and copying the payload there. The worker only searches for a folder when none is configured, and it only accepts a folder that actually contains a game version. When the launcher has moved, `sync_log.txt` says so - run **Replace payload** to point the sync at the new folder.
+
+### Exit codes of `Sync.ps1`
+
+| Code | Meaning |
+| --- | --- |
+| 0 | Success. |
+| 1 | Fatal error (payload folder missing, ...). |
+| 2 | The `versions` folder could not be resolved - nothing was touched. |
+| 3 | Finished, but some files could not be copied. |
+| 4 | Skipped because another sync was already running. |
+
+The scheduled task waits for the sync and reports its exit code, so the task history and `sync_log.txt` show what actually happened.
 
 ## Deployment presets
 
@@ -83,14 +113,20 @@ The build publishes `publish\Dropstone.exe` and `publish\config.ini`, then creat
 | --- | --- |
 | `payload\` | Extracted payload files |
 | `Sync.ps1` | Single-pass, idempotent sync |
-| `StartHidden.vbs` | Hidden runner used by the scheduled task |
+| `StartHidden.vbs` | Hidden runner used by the scheduled task (waits for the sync and returns its exit code) |
 | `LaunchWithSync.vbs` | Syncs, then starts LeviLauncher |
 | `SyncNow.cmd` | Manual sync |
 | `config.ini` | Resolved versions folder and launcher path |
 | `install.json` | Installer state used to detect an existing install |
-| `sync_log.txt` | Created when the sync has something to report |
+| `deployed.json` | The payload files that were deployed, and where (used by Replace and Uninstall) |
+| `install.log` | What the installer did, including the first sync |
+| `sync_log.txt` | The worker's log |
 
 The scheduled task is named `Dropstone Sync`. It runs as the current user with least privilege.
+
+### Uninstall
+
+Uninstall removes exactly the items that Dropstone created inside the install folder (`payload\`, the worker files, `config.ini`, `install.json`, `deployed.json`, the logs) and the files it deployed into the version folders. The install folder itself is only deleted when it is empty afterwards - if you pointed Dropstone at a folder that already had other files, those files and the folder stay. Files in the version folders that Dropstone never deployed are left alone as well.
 
 ## Event watch
 
@@ -110,8 +146,21 @@ Run Dropstone again and choose **Uninstall**. This removes the scheduled task, t
 
 - Archives may contain files at the root or inside one top-level folder; a single wrapper folder is flattened.
 - Relative paths inside the archive are preserved when syncing.
-- Files that already exist in a version folder are skipped unless `Sync.ps1 -Force` is run manually.
+- An archive may expand to at most 1 GB, and a single entry to at most 512 MB. A small archive that would expand to gigabytes is rejected.
+- A URL payload may be at most 2 GB and has to finish within 30 minutes. The window stays closable while it downloads; closing it cancels the download.
+- Only one Dropstone can run at a time. A second instance tells you and closes.
 - The sync only targets version folders that contain `Minecraft.Windows.exe` or `Minecraft.Win10.DX11.exe`.
+
+## Tests
+
+`tests\` contains an executable stability suite. It runs against a sandboxed fake LeviLauncher and never writes into a real `versions` folder.
+
+```powershell
+.\tests\Run-Tests.ps1 -Quick   # worker tests, no elevation, no GUI
+.\tests\Run-Tests.ps1 -Full    # everything, including the end-to-end installer tests
+```
+
+See `tests\README.md` for the details and the safety rules.
 
 ## Repository layout
 

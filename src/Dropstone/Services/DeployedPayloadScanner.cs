@@ -18,7 +18,73 @@ internal static class DeployedPayloadScanner
         "stop.flag"
     };
 
+    /// <summary>
+    /// Lists the payload files that Dropstone deployed into the LeviLauncher
+    /// version folders. The deployment manifest is the source of truth, so
+    /// files that were deployed by an older payload are found as well.
+    /// </summary>
     public static IReadOnlyList<DeployedPayloadFile> Scan(string installDir, string? versionsDir)
+    {
+        var manifest = DeploymentManifest.Read(installDir);
+        if (manifest is not null)
+        {
+            var fromManifest = ScanFromManifest(manifest);
+            if (fromManifest.Count > 0)
+            {
+                return fromManifest;
+            }
+        }
+
+        return ScanFromPayload(installDir, versionsDir);
+    }
+
+    private static IReadOnlyList<DeployedPayloadFile> ScanFromManifest(DeploymentManifest manifest)
+    {
+        var results = new List<DeployedPayloadFile>();
+        var grouped = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var version in manifest.Versions)
+        {
+            if (string.IsNullOrWhiteSpace(version.Path))
+            {
+                continue;
+            }
+
+            foreach (var file in version.Files)
+            {
+                var deployed = Path.Combine(version.Path, file);
+                if (!File.Exists(deployed))
+                {
+                    continue;
+                }
+
+                if (!grouped.TryGetValue(file, out var locations))
+                {
+                    locations = new List<string>();
+                    grouped[file] = locations;
+                }
+
+                locations.Add(deployed);
+            }
+        }
+
+        foreach (var pair in grouped)
+        {
+            results.Add(new DeployedPayloadFile
+            {
+                RelativePath = pair.Key,
+                Locations = pair.Value
+            });
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Fallback for installations that predate the deployment manifest: look for
+    /// the current payload's files inside the version folders.
+    /// </summary>
+    private static IReadOnlyList<DeployedPayloadFile> ScanFromPayload(string installDir, string? versionsDir)
     {
         var payloadDirectory = Path.Combine(installDir, "payload");
         if (!Directory.Exists(payloadDirectory) ||

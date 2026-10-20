@@ -23,6 +23,7 @@ public sealed partial class MainWindow : Window
     private bool _replaceMode;
     private bool _closed;
     private bool _busy;
+    private CancellationTokenSource? _operation;
 
     public MainWindow()
     {
@@ -36,7 +37,19 @@ public sealed partial class MainWindow : Window
             SetTitleBar(AppHeader);
             AppWindow.TitleBar.ButtonBackgroundColor = Colors.Transparent;
             AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
-            AppWindow.Closing += (_, args) => args.Cancel = _busy;
+            AppWindow.Closing += (_, args) =>
+            {
+                // While files are being written the window must not close.
+                // A running download may be cancelled by closing the window.
+                if (_busy)
+                {
+                    args.Cancel = true;
+                }
+                else
+                {
+                    _operation?.Cancel();
+                }
+            };
         }
         catch
         {
@@ -437,28 +450,35 @@ public sealed partial class MainWindow : Window
         SetupErrorBar.IsOpen = false;
     }
 
-    private void Next_Click(object sender, RoutedEventArgs e)
+    private async void Next_Click(object sender, RoutedEventArgs e)
     {
         SetupErrorBar.IsOpen = false;
 
+        string installDir;
         try
         {
-            var installDir = NormalizeChosenInstallDir(InstallPathBox.Text);
+            installDir = NormalizeChosenInstallDir(InstallPathBox.Text);
             if (File.Exists(installDir))
             {
                 throw new InvalidOperationException("The install location points to a file.");
             }
-
-            InstallPathBox.Text = installDir;
-            InstallPathBox.IsEnabled = true;
-            _replaceMode = false;
-            ShowArchive();
         }
         catch (Exception exception)
         {
             SetupErrorBar.Message = exception.Message;
             SetupErrorBar.IsOpen = true;
+            return;
         }
+
+        if (!await ConfirmForeignFolderAsync(installDir))
+        {
+            return;
+        }
+
+        InstallPathBox.Text = installDir;
+        InstallPathBox.IsEnabled = true;
+        _replaceMode = false;
+        ShowArchive();
     }
 
     private async void BrowseArchive_Click(object sender, RoutedEventArgs e)
@@ -551,6 +571,11 @@ public sealed partial class MainWindow : Window
             : null;
         _replaceMode = false;
 
+        if (!await ConfirmForeignFolderAsync(installDir))
+        {
+            return;
+        }
+
         await RunInstallAsync(
             installDir,
             false,
@@ -580,7 +605,6 @@ public sealed partial class MainWindow : Window
 
         ShowOnly(ProgressPanel);
         SetProgress("Preparing...", ProgressUpdate.IndeterminatePercent);
-        _busy = true;
 
         string? downloadedArchive = null;
         try
@@ -589,10 +613,20 @@ public sealed partial class MainWindow : Window
             var archivePath = _archivePath;
             if (archivePath is null)
             {
+                // A download can take a long time. The window stays closable
+                // while it runs, and closing it cancels the download.
                 SetProgress("Downloading payload...", ProgressUpdate.IndeterminatePercent);
-                downloadedArchive = await Task.Run(() => PayloadDownloader.Download(new Uri(_payloadUrl!), progress));
+                using var download = new CancellationTokenSource();
+                _operation = download;
+                downloadedArchive = await Task.Run(
+                    () => PayloadDownloader.Download(new Uri(_payloadUrl!), progress, download.Token));
+                _operation = null;
                 archivePath = downloadedArchive;
             }
+
+            // from here on the installation changes files: the window must not
+            // be closed in the middle of it
+            _busy = true;
 
             var request = new InstallRequest
             {
@@ -634,6 +668,7 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
+            _operation = null;
             if (downloadedArchive is not null)
             {
                 PayloadDownloader.TryDelete(downloadedArchive);
@@ -751,23 +786,23 @@ public sealed partial class MainWindow : Window
         {
             var installDir = _installed.InstallDir;
             var progress = new Progress<ProgressUpdate>(ApplyProgress);
-            var removedCount = await Task.Run(() =>
-            {
-                _installer.Uninstall(installDir, progress);
-                return selectedFiles.Count == 0
-                    ? 0
-                    : DeployedPayloadScanner.Remove(selectedFiles, progress);
-            });
+            var outcome = await Task.Run(() =>
+                _installer.Uninstall(installDir, progress, selectedFiles));
 
             SetProgress(ProgressText.Text, 100);
             _busy = false;
 
             var message =
                 "The Dropstone task, settings, and files were removed. LeviLauncher itself was not touched.";
-            if (removedCount > 0)
+            if (outcome.RemovedFiles > 0)
             {
                 message +=
-                    $"{Environment.NewLine}{removedCount} deployed payload file(s) were removed from the version folders.";
+                    $"{Environment.NewLine}{outcome.RemovedFiles} deployed payload file(s) were removed from the version folders.";
+            }
+
+            if (!string.IsNullOrWhiteSpace(outcome.Warning))
+            {
+                message += $"{Environment.NewLine}{Environment.NewLine}Warning: {outcome.Warning}";
             }
 
             ShowResult("Uninstalled", message, isError: false);
@@ -781,4 +816,76 @@ public sealed partial class MainWindow : Window
     }
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
+
+    /// <summary>Shows a short notice and closes the window again.</summary>
+    public async Task ShowNoticeAsync(string title, string message)
+    {
+        try
+        {
+            var dialog = new ContentDialog
+            {
+                XamlRoot = Content.XamlRoot,
+                Title = title,
+                Content = message,
+                CloseButtonText = "OK"
+            };
+            await dialog.ShowAsync();
+        }
+        catch
+        {
+            // A dialog that cannot be shown must not crash the app.
+        }
+
+        Close();
+    }
+
+    /// <summary>
+    /// A folder that is not empty and does not belong to Dropstone is accepted
+    /// only after the user confirmed it - the uninstall removes the items
+    /// Dropstone created, but the folder itself may hold important files.
+    /// </summary>
+    private async Task<bool> ConfirmForeignFolderAsync(string installDir)
+    {
+        if (!Directory.Exists(installDir))
+        {
+            return true;
+        }
+
+        if (File.Exists(Path.Combine(installDir, "install.json")))
+        {
+            return true;
+        }
+
+        var entries = Directory.EnumerateFileSystemEntries(installDir).Take(5).ToList();
+        if (entries.Count == 0)
+        {
+            return true;
+        }
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = Content.XamlRoot,
+            Title = "The folder is not empty",
+            Content = new StackPanel { Spacing = 8 },
+            PrimaryButtonText = "Use this folder",
+            CloseButtonText = "Choose another folder",
+            DefaultButton = ContentDialogButton.Close
+        };
+
+        var panel = (StackPanel)dialog.Content;
+        panel.Children.Add(new TextBlock
+        {
+            Text = "This folder already contains files. Dropstone adds its own files next to them and " +
+                   "removes only those on uninstall.",
+            TextWrapping = TextWrapping.Wrap
+        });
+        panel.Children.Add(new TextBlock
+        {
+            Text = string.Join(Environment.NewLine, entries.Select(entry => "  " + entry)),
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.7
+        });
+
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+    }
 }

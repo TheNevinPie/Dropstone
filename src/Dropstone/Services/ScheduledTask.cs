@@ -55,15 +55,22 @@ internal static class ScheduledTask
         }
     }
 
-    public static void Delete()
+    public static bool Delete()
     {
         try
         {
-            Run("/Delete", "/TN", TaskName, "/F");
+            var (exitCode, output) = Run("/Delete", "/TN", TaskName, "/F");
+            if (exitCode == 0)
+            {
+                return true;
+            }
+
+            // A task that is already gone is not a failure.
+            return output.Contains("cannot find the file specified", StringComparison.OrdinalIgnoreCase);
         }
         catch
         {
-            // Uninstall should continue when the task is already gone.
+            return false;
         }
     }
 

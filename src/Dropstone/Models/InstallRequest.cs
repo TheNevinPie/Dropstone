@@ -17,3 +17,9 @@ public sealed class InstallOutcome
     public int PayloadFileCount { get; init; }
     public string? Warning { get; init; }
 }
+
+public sealed class UninstallOutcome
+{
+    public int RemovedFiles { get; init; }
+    public string? Warning { get; init; }
+}

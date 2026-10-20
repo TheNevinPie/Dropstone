@@ -7,6 +7,14 @@ internal static class ArchiveExtractor
 {
     private static readonly string[] SupportedExtensions = { ".zip", ".rar", ".dll" };
 
+    /// <summary>
+    /// Upper bound for the uncompressed size of an archive. Without it a small
+    /// download can expand into gigabytes and fill the disk.
+    /// </summary>
+    private const long MaximumExpandedBytes = 1024L * 1024 * 1024;
+
+    private const long MaximumEntryBytes = 512L * 1024 * 1024;
+
     public static void Extract(string archivePath, string destinationDirectory, CancellationToken cancellationToken)
     {
         if (!File.Exists(archivePath))
@@ -36,6 +44,7 @@ internal static class ArchiveExtractor
 
         using var archive = ArchiveFactory.Open(archivePath, new ReaderOptions());
 
+        long expanded = 0;
         foreach (var entry in archive.Entries)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -45,9 +54,22 @@ internal static class ArchiveExtractor
                 continue;
             }
 
-            var relativePath = entry.Key
+            var rawPath = entry.Key
                 .Replace('/', Path.DirectorySeparatorChar)
                 .TrimStart(Path.DirectorySeparatorChar);
+
+            if (rawPath.Length == 0)
+            {
+                continue;
+            }
+
+            // An archive may contain directory entries that are not flagged as
+            // such. A trailing separator always means "directory" - writing a
+            // file with a directory's name would make the next entry fail.
+            var isDirectory = entry.IsDirectory || rawPath.EndsWith(Path.DirectorySeparatorChar);
+            var relativePath = isDirectory
+                ? rawPath.TrimEnd(Path.DirectorySeparatorChar)
+                : rawPath;
 
             if (relativePath.Length == 0)
             {
@@ -61,22 +83,59 @@ internal static class ArchiveExtractor
                 throw new InvalidDataException($"Archive entry escapes the destination folder: {entry.Key}");
             }
 
-            if (entry.IsDirectory)
+            if (isDirectory)
             {
                 Directory.CreateDirectory(destination);
                 continue;
             }
 
+            if (entry.Size > MaximumEntryBytes)
+            {
+                throw new InvalidDataException(
+                    $"Archive entry '{entry.Key}' is too large (limit: 512 MB).");
+            }
+
+            expanded += Math.Max(entry.Size, 0);
+            if (expanded > MaximumExpandedBytes)
+            {
+                throw new InvalidDataException(
+                    "The archive expands to more than 1 GB. That looks like a malformed or malicious archive.");
+            }
+
             var parent = Path.GetDirectoryName(destination);
             if (!string.IsNullOrEmpty(parent))
             {
-                Directory.CreateDirectory(parent);
+                Directory.CreateDirectory(ToLongPath(parent));
             }
 
             using var input = entry.OpenEntryStream();
-            using var output = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None);
+            using var output = new FileStream(
+                ToLongPath(destination),
+                FileMode.Create,
+                FileAccess.Write,
+                FileShare.None);
             input.CopyTo(output);
         }
+    }
+
+    /// <summary>
+    /// Returns the extended-length form of an absolute path. Windows only
+    /// accepts paths longer than MAX_PATH when they use the "\\?\" prefix,
+    /// which works regardless of the long-path manifest.
+    /// </summary>
+    private static string ToLongPath(string path)
+    {
+        if (path.StartsWith(@"\\?\", StringComparison.Ordinal))
+        {
+            return path;
+        }
+
+        if (path.StartsWith(@"\\", StringComparison.Ordinal))
+        {
+            return @"\\?\UNC\" + path[2..];
+        }
+
+        return path.Length > 240 ? @"\\?\" + path : path;
     }
 
     public static void FlattenSingleRoot(string directory)
@@ -88,19 +147,30 @@ internal static class ArchiveExtractor
         }
 
         var singleRoot = entries[0];
-        foreach (var item in Directory.GetFileSystemEntries(singleRoot))
+        var wrapperName = Path.GetFileName(singleRoot);
+        var children = Directory.GetFileSystemEntries(singleRoot);
+
+        // A child with the same name as the wrapper cannot be moved up - the
+        // name is already taken. In that case the wrapper stays.
+        if (children.Any(child =>
+                string.Equals(Path.GetFileName(child), wrapperName, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        foreach (var item in children)
         {
             var destination = Path.Combine(directory, Path.GetFileName(item));
             if (Directory.Exists(item))
             {
-                Directory.Move(item, destination);
+                Directory.Move(ToLongPath(item), ToLongPath(destination));
             }
             else
             {
-                File.Move(item, destination);
+                File.Move(ToLongPath(item), ToLongPath(destination));
             }
         }
 
-        Directory.Delete(singleRoot, recursive: true);
+        Directory.Delete(ToLongPath(singleRoot), recursive: true);
     }
 }

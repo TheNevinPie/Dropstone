@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
@@ -24,7 +24,7 @@
     <LangVersion>latest</LangVersion>
     <AssemblyName>Dropstone</AssemblyName>
     <ApplicationTitle>Dropstone</ApplicationTitle>
-    <Version>0.2.6</Version>
+    <Version>0.2.7</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -38,3 +38,4 @@
     </None>
   </ItemGroup>
 </Project>
+

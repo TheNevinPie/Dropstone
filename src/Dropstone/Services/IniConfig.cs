@@ -51,6 +51,10 @@ internal static class IniConfig
             }
         }
 
-        File.WriteAllLines(path, lines, Encoding.ASCII);
+        // UTF-8 with a BOM: PowerShell 5.1 reads a BOM-less file as ANSI, which
+        // would corrupt a path that contains non-ASCII characters.
+        File.WriteAllLines(path, lines, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
     }
+
+    public static bool Exists(string path) => File.Exists(path);
 }

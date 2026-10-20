@@ -8,3 +8,4 @@ build-native/
 *.suo
 *.log
 sync_log.txt
+tests/artifacts/

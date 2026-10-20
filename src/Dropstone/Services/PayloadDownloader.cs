@@ -7,16 +7,29 @@ internal static class PayloadDownloader
 {
     private const long MaximumBytes = 2L * 1024 * 1024 * 1024;
 
-    public static string Download(Uri uri, IProgress<ProgressUpdate>? progress)
+    /// <summary>Budget for the response headers.</summary>
+    private static readonly TimeSpan HeaderTimeout = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// Budget for the whole download. HttpClient.Timeout only covers the
+    /// headers when the body is streamed, so the body needs its own deadline -
+    /// without it a slow server can keep the installer busy forever.
+    /// </summary>
+    private static readonly TimeSpan TotalTimeout = TimeSpan.FromMinutes(30);
+
+    public static string Download(
+        Uri uri,
+        IProgress<ProgressUpdate>? progress,
+        CancellationToken cancellationToken = default)
     {
         if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
         {
             throw new InvalidOperationException("Only http and https payload URLs are supported.");
         }
 
-        using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+        using var client = new HttpClient { Timeout = HeaderTimeout };
         using var response = client
-            .GetAsync(uri, HttpCompletionOption.ResponseHeadersRead)
+            .GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .GetAwaiter()
             .GetResult();
 
@@ -44,16 +57,26 @@ internal static class PayloadDownloader
         Directory.CreateDirectory(directory);
         var destination = Path.Combine(directory, $"{Guid.NewGuid():N}{extension}");
 
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TotalTimeout);
+
         try
         {
-            using var source = response.Content.ReadAsStream();
+            using var source = response.Content.ReadAsStreamAsync(timeout.Token).GetAwaiter().GetResult();
             using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
             var buffer = new byte[81920];
             long total = 0;
             long reported = 0;
-            int read;
-            while ((read = source.Read(buffer, 0, buffer.Length)) > 0)
+            while (true)
             {
+                int read = source.ReadAsync(buffer.AsMemory(0, buffer.Length), timeout.Token)
+                    .GetAwaiter()
+                    .GetResult();
+                if (read <= 0)
+                {
+                    break;
+                }
+
                 total += read;
                 if (total > MaximumBytes)
                 {
@@ -77,6 +100,12 @@ internal static class PayloadDownloader
             }
 
             return destination;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            TryDelete(destination);
+            throw new TimeoutException(
+                $"The payload download did not finish within {TotalTimeout.TotalMinutes:F0} minutes.");
         }
         catch
         {
