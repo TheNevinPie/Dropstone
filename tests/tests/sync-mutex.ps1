@@ -24,7 +24,7 @@ Write-Host ("    (empty-sync baseline = " + [math]::Round($baseline.TotalSeconds
 
 Use-SandboxEnv $sb
 $p1 = Start-Process -FilePath "powershell.exe" -WindowStyle Hidden -PassThru `
-        -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "$($sb.Install)\Sync.ps1", "-Quiet"
+        -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$($sb.Install)\Sync.ps1`" -Quiet"
 $deadline = (Get-Date).AddSeconds(60)
 while ((Get-Date) -lt $deadline -and -not $p1.HasExited) {
     # wait until sync #1 is demonstrably copying
@@ -54,7 +54,7 @@ New-BigPayload -Sandbox $sbA -Megabytes 600 | Out-Null
 Copy-Item "$($sbA.Payload)\big.bin" "$($sbB.Payload)\big.bin" -Force
 Use-SandboxEnv $sbA
 $p = Start-Process -FilePath "powershell.exe" -WindowStyle Hidden -PassThru `
-        -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "$($sbA.Install)\Sync.ps1", "-Quiet"
+        -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$($sbA.Install)\Sync.ps1`" -Quiet"
 Start-Sleep -Milliseconds 1500
 $sw = [Diagnostics.Stopwatch]::StartNew()
 $rB = Invoke-Sync $sbB -Quiet

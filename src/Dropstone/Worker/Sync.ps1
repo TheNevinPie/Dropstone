@@ -21,6 +21,8 @@
 #   -NoAutoDetect        never auto-detect the versions folder; fail if it is
 #                        unknown (used by the installer, and by the test suite)
 #   -LockTimeoutSeconds  how long to wait for a running sync to finish
+#   -SettleSeconds       how long to wait for the game executable when a
+#                        version folder was just created (default 120)
 #
 # Versions folder resolution order:
 #   1. -VersionsDir parameter
@@ -49,7 +51,8 @@ param(
     [switch]$VerifyHash,
     [switch]$NoSave,
     [switch]$NoAutoDetect,
-    [int]$LockTimeoutSeconds = 900
+    [int]$LockTimeoutSeconds = 900,
+    [int]$SettleSeconds = 120
 )
 
 $scriptDir = $PSScriptRoot
@@ -128,14 +131,19 @@ function Test-VersionsDir([string]$Path) {
     return $null
 }
 
+function Test-GameVersionFolder([string]$Path) {
+    if (Test-Path -LiteralPath (Join-Path $Path "Minecraft.Windows.exe")) { return $true }
+    if (Test-Path -LiteralPath (Join-Path $Path "Minecraft.Win10.DX11.exe")) { return $true }
+    return $false
+}
+
 function Test-LooksLikeVersionsDir([string]$Path) {
     # A versions folder must contain at least one game version folder, i.e. a
     # sub folder holding Minecraft.Windows.exe or Minecraft.Win10.DX11.exe.
     if (-not $Path) { return $false }
     try {
         foreach ($child in (Get-ChildItem -LiteralPath $Path -Directory -Force -ErrorAction SilentlyContinue)) {
-            if (Test-Path -LiteralPath (Join-Path $child.FullName "Minecraft.Windows.exe")) { return $true }
-            if (Test-Path -LiteralPath (Join-Path $child.FullName "Minecraft.Win10.DX11.exe")) { return $true }
+            if (Test-GameVersionFolder $child.FullName) { return $true }
         }
     } catch { }
     return $false
@@ -446,6 +454,33 @@ function Invoke-SyncCore {
         foreach ($key in $managedByVersion.Keys) { $manifestFiles[$key] = @($managedByVersion[$key]) }
 
         $versions = @(Get-ChildItem -LiteralPath $targetDir -Directory -Force -ErrorAction SilentlyContinue)
+
+        if ($SettleSeconds -gt 0) {
+            $settleDeadline = (Get-Date).AddSeconds($SettleSeconds)
+            $waitAnnounced = @{}
+            while ($true) {
+                $waiting = @()
+                foreach ($v in $versions) {
+                    if (Test-GameVersionFolder $v.FullName) { continue }
+                    if (((Get-Date) - $v.CreationTime).TotalMinutes -gt 15) { continue }
+                    $waiting += $v
+                    if (-not $waitAnnounced.ContainsKey($v.FullName)) {
+                        $waitAnnounced[$v.FullName] = $true
+                        Write-Log "WAIT: '$($v.FullName)' has no game executable yet - waiting up to $SettleSeconds s for the launcher to finish the folder."
+                    }
+                }
+                if ($waiting.Count -eq 0) { break }
+                if ((Get-Date) -ge $settleDeadline) {
+                    foreach ($v in $waiting) {
+                        Write-Log "WAIT: timed out for '$($v.FullName)' - no game executable after $SettleSeconds s."
+                    }
+                    break
+                }
+                Start-Sleep -Milliseconds 1000
+                $versions = @(Get-ChildItem -LiteralPath $targetDir -Directory -Force -ErrorAction SilentlyContinue)
+            }
+        }
+
         $copied = 0
         $repaired = 0
         $failed = $unreadable
@@ -454,8 +489,7 @@ function Invoke-SyncCore {
 
         foreach ($version in $versions) {
             $versionDir = $version.FullName
-            $hasGame = (Test-Path -LiteralPath (Join-Path $versionDir "Minecraft.Windows.exe")) -or
-                       (Test-Path -LiteralPath (Join-Path $versionDir "Minecraft.Win10.DX11.exe"))
+            $hasGame = Test-GameVersionFolder $versionDir
             if (-not $hasGame) {
                 Write-Log "SKIP: '$versionDir' has no Minecraft.Windows.exe / Minecraft.Win10.DX11.exe - not a game version folder."
                 continue

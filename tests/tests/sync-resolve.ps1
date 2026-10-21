@@ -82,7 +82,7 @@ if ($hasSwitch) {
 $sb = New-Sandbox "resolve-nogame"
 Set-Content -LiteralPath "$($sb.Payload)\a.dll" -Value "p"
 Remove-Item -LiteralPath "$($sb.Versions)\1.0.0\Minecraft.Windows.exe"
-$r = Invoke-Sync $sb -Quiet
+$r = Invoke-Sync $sb -Quiet -Extra @("-SettleSeconds", "0")
 $deployed = Test-Path -LiteralPath "$($sb.Versions)\1.0.0\a.dll"
 $logged = $r.Out -match "skip" -or (Test-Path "$($sb.Install)\sync_log.txt")
 $ok = (-not $deployed) -and $logged

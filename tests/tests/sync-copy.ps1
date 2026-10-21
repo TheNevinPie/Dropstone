@@ -87,3 +87,30 @@ $deployed = Test-Path -LiteralPath "$($sb.Versions)\1.0.0\locked.dll"
 Record-Result -Id "T12" -Test "unreadable payload file is reported" -Pass ($r.Exit -ne 0) -Severity "Medium" `
     -Detail ("deployed = $deployed ; exit code = $($r.Exit)")
 Assert-Sandboxed $sb | Out-Null
+
+# ---------------------------------------------------------------- T25b a late game marker is waited for
+$sb = New-Sandbox "copy-latemarker"
+Set-Content -LiteralPath "$($sb.Payload)\a.dll" -Value "p"
+$lateDir = Join-Path $sb.Versions "2.0.0"
+New-Item -ItemType Directory -Path $lateDir -Force | Out-Null
+$logPath = "$($sb.Install)\sync_log.txt"
+Use-SandboxEnv $sb
+$p = Start-Process -FilePath "powershell.exe" -WindowStyle Hidden -PassThru `
+        -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$($sb.Install)\Sync.ps1`" -Quiet"
+$started = $false
+$deadline = (Get-Date).AddSeconds(30)
+while ((Get-Date) -lt $deadline) {
+    if ((Test-Path -LiteralPath $logPath) -and ((Get-Content -LiteralPath $logPath -Raw -ErrorAction SilentlyContinue) -match "sync started")) { $started = $true; break }
+    Start-Sleep -Milliseconds 100
+}
+Start-Sleep -Milliseconds 700
+Set-Content -LiteralPath (Join-Path $lateDir "Minecraft.Windows.exe") -Value "stub"
+$exited = $p.WaitForExit(120000)
+if (-not $exited) { $p.Kill(); $p.WaitForExit(10000) | Out-Null }
+Restore-Env
+$code = $null
+try { $code = $p.ExitCode } catch { }
+$deployed = Test-Path -LiteralPath (Join-Path $lateDir "a.dll")
+Record-Result -Id "T25b" -Test "sync waits for a late game marker and tops up the folder" -Pass ($started -and $exited -and $deployed -and $code -eq 0) -Severity "High" `
+    -Detail ("sync started before the marker = $started ; deployed after the marker = $deployed ; exit = $code")
+Assert-Sandboxed $sb | Out-Null
