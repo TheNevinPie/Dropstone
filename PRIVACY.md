@@ -12,10 +12,6 @@ Dropstone does not transfer information to other networked systems unless specif
 
 If the user configures a payload URL and confirms the install, Dropstone downloads that URL. The request necessarily discloses standard connection data, such as the user's IP address and HTTP headers, to the host serving the payload. That host's privacy policy applies. Dropstone does not send the payload or install details anywhere else.
 
-## SignPath
-
-Release binaries may be signed by SignPath Foundation. Signature verification is local; Dropstone does not contact SignPath at runtime.
-
 ## Contact
 
 Open an issue at https://github.com/TheNevinPie/Dropstone/issues.

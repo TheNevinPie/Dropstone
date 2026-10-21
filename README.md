@@ -6,12 +6,6 @@ Dropstone is a lightweight Windows utility that detects LeviLauncher installatio
 
 [**Download Latest Release**](https://github.com/TheNevinPie/Dropstone/releases) · [Report a Bug](https://github.com/TheNevinPie/Dropstone/issues)
 
-## Code signing policy
-
-Release binaries are intended to use free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org), once the project is accepted. Until then, release binaries are unsigned. See [CODE_SIGNING.md](CODE_SIGNING.md) for roles, approval, and signature verification.
-
-Dropstone does not transfer information to other networked systems unless the user requests a URL payload; see [PRIVACY.md](PRIVACY.md).
-
 ---
 
 ## Features
@@ -335,14 +329,13 @@ Dropstone/
 │   └── workflows/
 │       └── build.yml            # GitHub Actions build and worker tests
 ├── docs/
-│   └── signpath-application.md  # SignPath application notes
+│   └── stability-audit-2026-10.md  # Stability audit report
 ├── src/
 │   └── Dropstone/
 │       └── Worker/              # Background synchronization components
 ├── packaging/
 │   └── config.ini               # Deployment preset template
 ├── tests/                       # Stability and integration tests
-├── CODE_SIGNING.md              # Code signing policy and release approval
 ├── PRIVACY.md                   # Privacy policy
 ├── LICENSE                      # MIT license
 ├── build.ps1                    # Build and release packaging
@@ -362,6 +355,8 @@ Dropstone is a generic file-deployment utility designed to help users manage the
 - Do not use Dropstone to distribute malware, pirated software, license-bypass files, or other infringing content.
 
 **Dropstone does not bundle third-party game files or payloads.** You are responsible for the content you supply and for complying with its applicable licenses and terms.
+
+See [PRIVACY.md](PRIVACY.md) for local data handling and network access.
 
 Dropstone is not affiliated with, endorsed by, or sponsored by LeviLauncher, Mojang Studios, Microsoft, or NVIDIA.
 
