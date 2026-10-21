@@ -44,8 +44,7 @@ Record-Result -Id "T21" -Test "archive expansion is bounded" -Pass $rejected -Se
 
 $deepOut = Join-Path $payloadDir $rel
 $deepOk = Test-Path -LiteralPath $deepOut
-Record-Result -Id "T24" -Test "a 400+ character payload path is handled" -Pass $deepOk -Severity "Low" `
-    -Detail ("deep path length = " + $deepOut.Length + " ; extracted = $deepOk ; (the hostile archive above was refused, so this path is checked with a benign archive below)")
+Write-Host ("    (the hostile archive is refused on purpose, so its deep path is not extracted: extracted = $deepOk)")
 Stop-App -ProcessId $p.Id
 
 # the deep path is checked with a benign archive (the hostile one is refused)
