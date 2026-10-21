@@ -19,7 +19,7 @@ Get the latest release from [github.com/TheNevinPie/Dropstone/releases](https://
 5. A per-user scheduled task runs a single-pass sync at logon and after app package deployment events. A WMI event watch also runs the sync whenever the LeviLauncher `versions` folder changes, so a newly installed version folder is topped up within seconds. A manual `SyncNow.cmd` is also provided.
 6. On the next launch, the installer offers **Replace payload** or **Uninstall** instead.
 
-The sync copies payload files into each LeviLauncher version folder that does not already contain them, preserving relative paths. If a version folder was just created and the game executable is not there yet, the sync waits up to two minutes for the launcher to finish the folder instead of skipping it permanently.
+The sync copies payload files into each LeviLauncher version folder that does not already contain them, preserving relative paths. If a version folder was just created and the game executable is not there yet, the sync waits up to two minutes for the launcher to finish that folder. Other version folders are patched as soon as their own game executable appears; the sync no longer waits for every new folder before copying to any of them.
 
 ### What the sync does with a file that already exists
 

@@ -331,18 +331,108 @@ function Copy-Atomic {
     }
 }
 
+function Copy-PayloadToVersion {
+    param(
+        [string]$VersionDir,
+        [object[]]$PayloadFiles,
+        [string]$PayloadRootPath,
+        [hashtable]$ManifestFiles
+    )
+    $result = [pscustomobject]@{
+        Copied       = 0
+        Repaired     = 0
+        Skipped      = 0
+        Failed       = 0
+        FolderCopied = 0
+        FolderFiles  = @()
+    }
+
+    foreach ($file in $PayloadFiles) {
+        $relativePath = $file.FullName.Substring($PayloadRootPath.Length).TrimStart('\')
+        $destPath = Join-Path $VersionDir $relativePath
+        $destDir = Split-Path -Parent $destPath
+        $needCopy = $false
+        $reason = ""
+
+        if (-not (Test-Path -LiteralPath $destPath)) {
+            $needCopy = $true; $reason = "new"
+        } elseif ($Force) {
+            $needCopy = $true; $reason = "forced"
+        } else {
+            $srcLen = $file.Length
+            $dstLen = 0
+            try { $dstLen = (Get-Item -LiteralPath $destPath -Force).Length } catch { }
+            if ($dstLen -ne $srcLen) {
+                $needCopy = $true; $reason = "size differs ($dstLen -> $srcLen)"
+            } elseif ($VerifyHash) {
+                $srcHash = Get-FileSha256 $file.FullName
+                $dstHash = Get-FileSha256 $destPath
+                if ($srcHash -and $dstHash -and $srcHash -ne $dstHash) {
+                    $needCopy = $true; $reason = "content differs"
+                }
+            }
+        }
+
+        if (-not $needCopy) {
+            $result.Skipped++
+            Write-Log "SKIP: '$relativePath' already exists in '$VersionDir' with the same size - a foreign file is not overwritten."
+            continue
+        }
+
+        try {
+            if (-not (Test-Path -LiteralPath $destDir -PathType Container)) {
+                New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+            }
+            Copy-Atomic -Source $file.FullName -Destination $destPath
+            $result.Copied++
+            $result.FolderCopied++
+            if ($reason -ne "new") { $result.Repaired++ }
+            $result.FolderFiles += $relativePath
+        } catch {
+            $result.Failed++
+            Write-Log "ERROR: failed to copy $relativePath to $VersionDir : $($_.Exception.Message)"
+        }
+    }
+
+    if ($result.FolderCopied -gt 0) {
+        Write-Log "COPY: $($result.FolderCopied) file(s) into '$VersionDir'."
+        $existing = @()
+        if ($ManifestFiles.ContainsKey($VersionDir)) { $existing = @($ManifestFiles[$VersionDir]) }
+        $ManifestFiles[$VersionDir] = @($existing + $result.FolderFiles | Select-Object -Unique)
+    }
+
+    return $result
+}
+
 function Get-Manifest {
     if (-not (Test-Path -LiteralPath $manifestFile)) { return $null }
     try { return (Get-Content -LiteralPath $manifestFile -Raw -Encoding UTF8 | ConvertFrom-Json) } catch { return $null }
 }
 
 function Save-Manifest([object]$Manifest) {
+    $temp = $manifestFile + ".tmp-" + ([guid]::NewGuid().ToString("N"))
     try {
         $json = $Manifest | ConvertTo-Json -Depth 6
-        Set-Content -LiteralPath $manifestFile -Value $json -Encoding UTF8
+        Set-Content -LiteralPath $temp -Value $json -Encoding UTF8
+        Move-Item -LiteralPath $temp -Destination $manifestFile -Force
     } catch {
+        try { Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue } catch { }
         Write-Log "WARN: could not write the deployment manifest: $($_.Exception.Message)"
     }
+}
+
+function Save-ManifestFromTable([hashtable]$Files, [string]$Target) {
+    if ($Files.Count -eq 0) { return }
+    $entries = @()
+    foreach ($key in $Files.Keys) {
+        $entries += ,([pscustomobject]@{ path = $key; files = @($Files[$key]) })
+    }
+    Save-Manifest ([pscustomobject]@{
+        schema      = 1
+        generatedAt = (Get-Date).ToString("o")
+        target      = $Target
+        versions    = $entries
+    })
 }
 
 function Invoke-SyncCore {
@@ -453,15 +543,37 @@ function Invoke-SyncCore {
         $manifestFiles = @{}
         foreach ($key in $managedByVersion.Keys) { $manifestFiles[$key] = @($managedByVersion[$key]) }
 
+        $copied = 0
+        $repaired = 0
+        $failed = $unreadable
+        $skipped = 0
+        $touchedFolders = 0
+        $handled = @{}
         $versions = @(Get-ChildItem -LiteralPath $targetDir -Directory -Force -ErrorAction SilentlyContinue)
 
         if ($SettleSeconds -gt 0) {
             $settleDeadline = (Get-Date).AddSeconds($SettleSeconds)
             $waitAnnounced = @{}
             while ($true) {
+                $versions = @(Get-ChildItem -LiteralPath $targetDir -Directory -Force -ErrorAction SilentlyContinue)
                 $waiting = @()
+                $manifestDirty = $false
                 foreach ($v in $versions) {
-                    if (Test-GameVersionFolder $v.FullName) { continue }
+                    if (Test-GameVersionFolder $v.FullName) {
+                        if (-not $handled.ContainsKey($v.FullName)) {
+                            $handled[$v.FullName] = $true
+                            $outcome = Copy-PayloadToVersion -VersionDir $v.FullName -PayloadFiles $payload -PayloadRootPath $payloadRoot -ManifestFiles $manifestFiles
+                            $copied += $outcome.Copied
+                            $repaired += $outcome.Repaired
+                            $skipped += $outcome.Skipped
+                            $failed += $outcome.Failed
+                            if ($outcome.FolderCopied -gt 0) {
+                                $touchedFolders++
+                                $manifestDirty = $true
+                            }
+                        }
+                        continue
+                    }
                     if (((Get-Date) - $v.CreationTime).TotalMinutes -gt 15) { continue }
                     $waiting += $v
                     if (-not $waitAnnounced.ContainsKey($v.FullName)) {
@@ -469,6 +581,7 @@ function Invoke-SyncCore {
                         Write-Log "WAIT: '$($v.FullName)' has no game executable yet - waiting up to $SettleSeconds s for the launcher to finish the folder."
                     }
                 }
+                if ($manifestDirty) { Save-ManifestFromTable $manifestFiles $targetDir }
                 if ($waiting.Count -eq 0) { break }
                 if ((Get-Date) -ge $settleDeadline) {
                     foreach ($v in $waiting) {
@@ -477,91 +590,29 @@ function Invoke-SyncCore {
                     break
                 }
                 Start-Sleep -Milliseconds 1000
-                $versions = @(Get-ChildItem -LiteralPath $targetDir -Directory -Force -ErrorAction SilentlyContinue)
             }
         }
 
-        $copied = 0
-        $repaired = 0
-        $failed = $unreadable
-        $skipped = 0
-        $touchedFolders = 0
-
+        $versions = @(Get-ChildItem -LiteralPath $targetDir -Directory -Force -ErrorAction SilentlyContinue)
         foreach ($version in $versions) {
             $versionDir = $version.FullName
-            $hasGame = Test-GameVersionFolder $versionDir
-            if (-not $hasGame) {
+            if ($handled.ContainsKey($versionDir)) { continue }
+
+            if (-not (Test-GameVersionFolder $versionDir)) {
                 Write-Log "SKIP: '$versionDir' has no Minecraft.Windows.exe / Minecraft.Win10.DX11.exe - not a game version folder."
                 continue
             }
 
-            $folderCopied = 0
-            $folderFiles = @()
-            foreach ($file in $payload) {
-                $relativePath = $file.FullName.Substring($payloadRoot.Length).TrimStart('\')
-                $destPath = Join-Path $versionDir $relativePath
-                $destDir = Split-Path -Parent $destPath
-                $needCopy = $false
-                $reason = ""
-
-                if (-not (Test-Path -LiteralPath $destPath)) {
-                    $needCopy = $true; $reason = "new"
-                } elseif ($Force) {
-                    $needCopy = $true; $reason = "forced"
-                } else {
-                    $srcLen = $file.Length
-                    $dstLen = 0
-                    try { $dstLen = (Get-Item -LiteralPath $destPath -Force).Length } catch { }
-                    if ($dstLen -ne $srcLen) {
-                        $needCopy = $true; $reason = "size differs ($dstLen -> $srcLen)"
-                    } elseif ($VerifyHash) {
-                        $srcHash = Get-FileSha256 $file.FullName
-                        $dstHash = Get-FileSha256 $destPath
-                        if ($srcHash -and $dstHash -and $srcHash -ne $dstHash) {
-                            $needCopy = $true; $reason = "content differs"
-                        }
-                    }
-                }
-
-                if (-not $needCopy) {
-                    $skipped++
-                    Write-Log "SKIP: '$relativePath' already exists in '$versionDir' with the same size - a foreign file is not overwritten."
-                    continue
-                }
-
-                try {
-                    if (-not (Test-Path -LiteralPath $destDir -PathType Container)) {
-                        New-Item -ItemType Directory -Path $destDir -Force | Out-Null
-                    }
-                    Copy-Atomic -Source $file.FullName -Destination $destPath
-                    $copied++
-                    $folderCopied++
-                    if ($reason -ne "new") { $repaired++ }
-                    $folderFiles += $relativePath
-                } catch {
-                    $failed++
-                    Write-Log "ERROR: failed to copy $relativePath to $versionDir : $($_.Exception.Message)"
-                }
-            }
-            if ($folderCopied -gt 0) {
-                $touchedFolders++
-                $existing = @()
-                if ($manifestFiles.ContainsKey($versionDir)) { $existing = @($manifestFiles[$versionDir]) }
-                $manifestFiles[$versionDir] = @($existing + $folderFiles | Select-Object -Unique)
-            }
+            $outcome = Copy-PayloadToVersion -VersionDir $versionDir -PayloadFiles $payload -PayloadRootPath $payloadRoot -ManifestFiles $manifestFiles
+            $copied += $outcome.Copied
+            $repaired += $outcome.Repaired
+            $skipped += $outcome.Skipped
+            $failed += $outcome.Failed
+            if ($outcome.FolderCopied -gt 0) { $touchedFolders++ }
         }
 
         if ($manifestFiles.Count -gt 0) {
-            $entries = @()
-            foreach ($key in $manifestFiles.Keys) {
-                $entries += ,([pscustomobject]@{ path = $key; files = @($manifestFiles[$key]) })
-            }
-            Save-Manifest ([pscustomobject]@{
-                schema      = 1
-                generatedAt = (Get-Date).ToString("o")
-                target      = $targetDir
-                versions    = $entries
-            })
+            Save-ManifestFromTable $manifestFiles $targetDir
         }
 
         Write-Log "Sync complete: copied $copied file(s), repaired $repaired, skipped $skipped, into $touchedFolders version folder(s) under $targetDir (failed: $failed)."

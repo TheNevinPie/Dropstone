@@ -114,3 +114,29 @@ $deployed = Test-Path -LiteralPath (Join-Path $lateDir "a.dll")
 Record-Result -Id "T25b" -Test "sync waits for a late game marker and tops up the folder" -Pass ($started -and $exited -and $deployed -and $code -eq 0) -Severity "High" `
     -Detail ("sync started before the marker = $started ; deployed after the marker = $deployed ; exit = $code")
 Assert-Sandboxed $sb | Out-Null
+
+# ---------------------------------------------------------------- T25c ready folder is copied while another is still empty
+$sb = New-Sandbox "copy-partialwait"
+Set-Content -LiteralPath "$($sb.Payload)\a.dll" -Value "p"
+$blockedDir = Join-Path $sb.Versions "2.0.0"
+New-Item -ItemType Directory -Path $blockedDir -Force | Out-Null
+Use-SandboxEnv $sb
+$p = Start-Process -FilePath "powershell.exe" -WindowStyle Hidden -PassThru `
+        -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$($sb.Install)\Sync.ps1`" -Quiet -SettleSeconds 8"
+$watch = [System.Diagnostics.Stopwatch]::StartNew()
+$deployed = $false
+$deadline = (Get-Date).AddSeconds(5)
+while ((Get-Date) -lt $deadline) {
+    if (Test-Path -LiteralPath (Join-Path $sb.Versions "1.0.0\a.dll")) { $deployed = $true; break }
+    Start-Sleep -Milliseconds 100
+}
+$elapsed = [int]$watch.Elapsed.TotalSeconds
+$exited = $p.WaitForExit(30000)
+if (-not $exited) { $p.Kill(); $p.WaitForExit(10000) | Out-Null }
+Restore-Env
+$code = $null
+try { $code = $p.ExitCode } catch { }
+$blockedEmpty = -not (Test-Path -LiteralPath (Join-Path $blockedDir "a.dll"))
+Record-Result -Id "T25c" -Test "a ready folder is patched without waiting for another recent empty folder" -Pass ($deployed -and $exited -and ($code -eq 0) -and $blockedEmpty) -Severity "High" `
+    -Detail ("ready folder patched after ${elapsed}s = $deployed ; empty folder left untouched = $blockedEmpty ; exit = $code")
+Assert-Sandboxed $sb | Out-Null
