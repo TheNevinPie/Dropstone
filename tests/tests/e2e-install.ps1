@@ -38,6 +38,11 @@ Record-Result -Id "T30b" -Test "the result screen Close button exits the app" -P
     -Detail ("Close invoked = $closeClicked ; app exited = $exited")
 if (-not $exited) { Stop-App -ProcessId $p.Id }
 
+$markerPath = Join-Path $sb.Install "install.json"
+$marker = Get-Content -LiteralPath $markerPath -Raw | ConvertFrom-Json
+$marker.installedDescription = ""
+$marker | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $markerPath -Encoding UTF8
+
 $p2 = Start-App -Sandbox $sb
 $installedText = Get-UiField -ProcessId $p2.Id -Id "InstalledDescriptionText"
 $defaultTextOk = ($installedText -like "*worker is installed*") -and ($installedText -like "*replace the payload or uninstall*")

@@ -11,25 +11,32 @@ public static class InstalledStateDetector
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Dropstone");
 
-    public static InstalledMarker? Detect()
+    public static InstalledMarker? Detect(string? installDir = null)
     {
         var candidates = new List<string>();
 
-        try
+        if (!string.IsNullOrWhiteSpace(installDir))
         {
-            using var key = Registry.CurrentUser.OpenSubKey(RegistrySettings.KeyPath);
-            if (key?.GetValue("InstallDir") is string installDir &&
-                !string.IsNullOrWhiteSpace(installDir))
+            candidates.Add(installDir);
+        }
+        else
+        {
+            try
             {
-                candidates.Add(installDir);
+                using var key = Registry.CurrentUser.OpenSubKey(RegistrySettings.KeyPath);
+                if (key?.GetValue("InstallDir") is string registeredDir &&
+                    !string.IsNullOrWhiteSpace(registeredDir))
+                {
+                    candidates.Add(registeredDir);
+                }
             }
-        }
-        catch
-        {
-            // Ignore registry errors and fall back to the default location.
-        }
+            catch
+            {
+                // Ignore registry errors and fall back to the default location.
+            }
 
-        candidates.Add(DefaultInstallDir);
+            candidates.Add(DefaultInstallDir);
+        }
 
         foreach (var candidate in candidates.Distinct(StringComparer.OrdinalIgnoreCase))
         {

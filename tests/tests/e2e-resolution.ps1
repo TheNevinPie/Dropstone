@@ -1,4 +1,4 @@
-﻿# The installer and the worker must resolve the SAME versions folder.
+﻿# The installer must resolve the versions folder next to the launcher.
 # Read-only: the app is started with a preset that has no versionsdir, so the
 # app has to detect one. Nothing is installed and nothing is written.
 . "$PSScriptRoot\..\lib\e2e.ps1"
@@ -31,10 +31,6 @@ $ok = ($shown -and $shown.StartsWith($sb.Root, [StringComparison]::OrdinalIgnore
 Record-Result -Id "T22" -Test "the installer resolves the versions folder next to the launcher" -Pass $ok -Severity "High" `
     -Detail ("app resolved '$shown' ; the sandbox launcher folder is '$expected' ; a path outside the sandbox means the real launcher was picked")
 
-# the worker must resolve the same folder
-$workerSandbox = New-Sandbox "resolution-worker"
-Set-Content -LiteralPath "$($workerSandbox.Payload)\a.dll" -Value "p"
-Set-AppPreset -Root $workerSandbox.Root -PayloadPath (Join-Path $sb.Root "payload\payload.zip") | Out-Null
 Stop-App -ProcessId $p.Id
 
 

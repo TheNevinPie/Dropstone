@@ -147,7 +147,8 @@ public sealed partial class MainWindow : Window
     private void RefreshState()
     {
         _launcher = DetectPresetLauncher() ?? LauncherDetector.Detect();
-        _installed = InstalledStateDetector.Detect();
+        _installed = InstalledStateDetector.Detect(
+            _deployment.IsDirectInstall ? _deployment.InstallDir : null);
         InstallPathBox.Text = _installed?.InstallDir ??
             (!string.IsNullOrWhiteSpace(_deployment.InstallDir)
                 ? _deployment.InstallDir
