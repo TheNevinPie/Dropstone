@@ -1,6 +1,6 @@
 # Dropstone
 
-> **Beta software.** Dropstone is in beta and under active development. Expect rough edges and breaking changes between releases. Review any payload before deploying it and keep backups of files you care about.
+> **Stable release.** Dropstone 1.0.0 is the first stable release. Review any payload before deploying it and keep backups of files you care about.
 
 A portable WinUI 3 installer for a small Windows tool that keeps **your own payload files** present in LeviLauncher version folders.
 
