@@ -6,6 +6,12 @@ Dropstone is a lightweight Windows utility that detects LeviLauncher installatio
 
 [**Download Latest Release**](https://github.com/TheNevinPie/Dropstone/releases) · [Report a Bug](https://github.com/TheNevinPie/Dropstone/issues)
 
+## Code signing policy
+
+Release binaries are intended to use free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org), once the project is accepted. Until then, release binaries are unsigned. See [CODE_SIGNING.md](CODE_SIGNING.md) for roles, approval, and signature verification.
+
+Dropstone does not transfer information to other networked systems unless the user requests a URL payload; see [PRIVACY.md](PRIVACY.md).
+
 ---
 
 ## Features
@@ -325,12 +331,20 @@ See [`tests/README.md`](tests/README.md) for testing details and safety rules.
 
 ```text
 Dropstone/
+├── .github/
+│   └── workflows/
+│       └── build.yml            # GitHub Actions build and worker tests
+├── docs/
+│   └── signpath-application.md  # SignPath application notes
 ├── src/
 │   └── Dropstone/
 │       └── Worker/              # Background synchronization components
 ├── packaging/
 │   └── config.ini               # Deployment preset template
 ├── tests/                       # Stability and integration tests
+├── CODE_SIGNING.md              # Code signing policy and release approval
+├── PRIVACY.md                   # Privacy policy
+├── LICENSE                      # MIT license
 ├── build.ps1                    # Build and release packaging
 └── README.md
 ```
@@ -355,4 +369,4 @@ Dropstone is not affiliated with, endorsed by, or sponsored by LeviLauncher, Moj
 
 ## License
 
-See the repository's `LICENSE` file for applicable licensing terms.
+Dropstone is licensed under the [MIT License](LICENSE). Copyright (c) 2026 TheNevinPie.

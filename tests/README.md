@@ -21,11 +21,12 @@ designed so that it can never write into a real LeviLauncher `versions` folder:
 ## Running
 
 ```powershell
-# sync-level tests only (fast, no elevation, no GUI)
+# sync-level tests only (fast, no elevation, no GUI; preserves the live install)
 .\Run-Tests.ps1 -Quick
 
 # everything, including the end-to-end installer tests (needs elevation for
-# the WMI event watch; the app itself is driven through UI Automation)
+# the WMI event watch; the app itself is driven through UI Automation).
+# WARNING: this removes the live Dropstone task, WMI watch, and registry key.
 .\Run-Tests.ps1 -Full
 ```
 
@@ -53,9 +54,12 @@ Results are written to `tests\artifacts\results.csv` and summarised on screen.
 * The suite **never** installs into `%LOCALAPPDATA%\Dropstone`; it always uses
   a temp sandbox and a deployment preset (`config.ini` next to a copy of the
   EXE) that pins `installdir`, `versionsdir` and `payloadpath`.
+* `-Quick` preserves the live Dropstone task, WMI subscription, and registry
+  key. `-Full` removes them because the end-to-end tests install a task with
+  the same name; reinstall Dropstone after a full run.
 * `tools/cleanup.ps1` removes every artefact the suite creates (scheduled
   task, WMI subscription, registry key, sandboxes). Run it afterwards if a
-  test was interrupted.
+  test was interrupted. Use `-KeepLiveState` to preserve the live install.
 * The real LeviLauncher tree is only ever **read** (snapshot/compare).
 
 ## Notes

@@ -3,9 +3,9 @@
     Runs the Dropstone stability suite.
 
 .EXAMPLE
-    .\Run-Tests.ps1 -Quick          # sync-level only, no elevation, no GUI
+    .\Run-Tests.ps1 -Quick          # sync-level only; leaves the live install untouched
 .EXAMPLE
-    .\Run-Tests.ps1 -Full           # everything (needs an interactive session)
+    .\Run-Tests.ps1 -Full           # everything; removes the live task, WMI watch, and registry key
 .EXAMPLE
     .\Run-Tests.ps1 -Full -NoWatchdog
 #>
@@ -38,6 +38,9 @@ function Invoke-TestFile {
 Write-Host "=== Dropstone stability suite ==="
 Write-Host ("    mode: " + $(if ($Full) { "FULL" } elseif ($Quick) { "QUICK" } else { "QUICK" }))
 Write-Host ("    artifacts: " + $artifacts)
+if ($Full) {
+    Write-Host "    WARNING: full mode removes the live Dropstone task, WMI watch, and registry key; reinstall afterward."
+}
 
 # ---------------------------------------------------------------- safety net
 $watchdog = $null
@@ -72,7 +75,9 @@ $e2eTests = @(
 )
 
 # clean any state left over from an earlier run
-& (Join-Path $here "tools\cleanup.ps1") -RealVersions $RealVersions -KeepSandboxes | Out-Null
+$cleanupArgs = @{ RealVersions = $RealVersions; KeepSandboxes = $true }
+if (-not $Full) { $cleanupArgs.KeepLiveState = $true }
+& (Join-Path $here "tools\cleanup.ps1") @cleanupArgs | Out-Null
 
 foreach ($t in $syncTests) { Invoke-TestFile (Join-Path $here $t) }
 if ($Full) {
@@ -96,7 +101,9 @@ if ($watchdog) {
 if (-not $NoCleanup) {
     Write-Host ""
     Write-Host "=== cleanup ==="
-    & (Join-Path $here "tools\cleanup.ps1") -RealVersions $RealVersions | Out-Null
+    $cleanupArgs = @{ RealVersions = $RealVersions }
+    if (-not $Full) { $cleanupArgs.KeepLiveState = $true }
+    & (Join-Path $here "tools\cleanup.ps1") @cleanupArgs | Out-Null
 }
 
 # ---------------------------------------------------------------- verdict
