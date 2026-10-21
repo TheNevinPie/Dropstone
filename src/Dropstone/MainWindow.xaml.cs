@@ -21,7 +21,6 @@ public sealed partial class MainWindow : Window
     private string? _archivePath;
     private string? _payloadUrl;
     private bool _replaceMode;
-    private bool _closed;
     private bool _busy;
     private CancellationTokenSource? _operation;
 
@@ -56,7 +55,6 @@ public sealed partial class MainWindow : Window
             // Window chrome customization is best-effort.
         }
 
-        Closed += (_, _) => _closed = true;
         ApplyDirectText();
         ShowDeploymentPreset();
         RefreshState();
@@ -220,10 +218,10 @@ public sealed partial class MainWindow : Window
         InstalledInfoBar.Title = string.IsNullOrWhiteSpace(_installed.InstalledTitle)
             ? "Dropstone is already installed"
             : _installed.InstalledTitle;
-        InstalledDescriptionText.Text = _installed.InstalledDescription ?? string.Empty;
-        InstalledDescriptionText.Visibility = string.IsNullOrWhiteSpace(_installed.InstalledDescription)
-            ? Visibility.Collapsed
-            : Visibility.Visible;
+        InstalledDescriptionText.Text = string.IsNullOrWhiteSpace(_installed.InstalledDescription)
+            ? "The Dropstone worker is installed and keeps the payload in sync automatically. You only need this installer to replace the payload or uninstall Dropstone."
+            : _installed.InstalledDescription;
+        InstalledDescriptionText.Visibility = Visibility.Visible;
 
         var summary = new StringBuilder();
         summary.AppendLine($"Install folder: {_installed.InstallDir}");
@@ -381,15 +379,6 @@ public sealed partial class MainWindow : Window
         ResultIcon.Glyph = isError ? "\uE783" : "\uE73E";
         ResultTitle.Text = title;
         ResultMessage.Text = message;
-    }
-
-    private async Task CloseAfterDelayAsync()
-    {
-        await Task.Delay(1400);
-        if (!_closed)
-        {
-            Close();
-        }
     }
 
     private static string NormalizeChosenInstallDir(string value)
@@ -643,9 +632,13 @@ public sealed partial class MainWindow : Window
             var outcome = await Task.Run(() => _installer.Install(request, progress));
 
             var title = isReplace ? "Payload replaced" : "Installed";
+            var workerStatus = isReplace
+                ? "The Dropstone worker is already installed and keeps the payload in sync automatically."
+                : "The Dropstone worker is now installed and keeps the payload in sync automatically.";
             var message =
                 $"Payload installed to {Path.GetFullPath(installDir)} ({outcome.PayloadFileCount} file(s)).{Environment.NewLine}" +
-                $"The sync task and event watch were registered, and the payload was applied to existing LeviLauncher versions.";
+                $"The sync task and event watch were registered, and the payload was applied to existing LeviLauncher versions.{Environment.NewLine}{Environment.NewLine}" +
+                $"{workerStatus} You can close this window; keep the installer only if you may want to replace the payload or uninstall Dropstone later.";
 
             if (!string.IsNullOrWhiteSpace(outcome.Warning))
             {
@@ -655,11 +648,6 @@ public sealed partial class MainWindow : Window
             SetProgress(ProgressText.Text, 100);
             _busy = false;
             ShowResult(title, message, isError: false);
-
-            if (string.IsNullOrWhiteSpace(outcome.Warning))
-            {
-                await CloseAfterDelayAsync();
-            }
         }
         catch (Exception exception)
         {
@@ -805,8 +793,8 @@ public sealed partial class MainWindow : Window
                 message += $"{Environment.NewLine}{Environment.NewLine}Warning: {outcome.Warning}";
             }
 
+            message += $"{Environment.NewLine}{Environment.NewLine}You can close this window when you are done.";
             ShowResult("Uninstalled", message, isError: false);
-            await CloseAfterDelayAsync();
         }
         catch (Exception exception)
         {

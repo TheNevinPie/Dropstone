@@ -45,4 +45,16 @@ Record-Result -Id "T27b" -Test "uninstall removed the install marker" -Pass $ins
 Record-Result -Id "T28b" -Test "uninstall keeps files it never deployed" -Pass $foreign -Severity "Medium" `
     -Detail ("foreign.dll present = $foreign (Dropstone must not delete files it did not deploy)")
 
-Stop-App -ProcessId $p2.Id
+Start-Sleep -Seconds 3
+$p2.Refresh()
+$stayedOpen = -not $p2.HasExited
+$closeHintOk = $res.Message -like "*close this window*"
+Record-Result -Id "T31" -Test "the uninstall result stays open with a close hint" -Pass ($stayedOpen -and $closeHintOk) -Severity "Medium" `
+    -Detail ("process alive 3s after result = $stayedOpen ; close hint = $closeHintOk")
+
+$closeClicked = Invoke-UiButton -ProcessId $p2.Id -Name "Close"
+$exited = $p2.WaitForExit(10000)
+Record-Result -Id "T31b" -Test "the uninstall result Close button exits the app" -Pass ($closeClicked -and $exited) -Severity "Medium" `
+    -Detail ("Close invoked = $closeClicked ; app exited = $exited")
+
+if (-not $exited) { Stop-App -ProcessId $p2.Id }

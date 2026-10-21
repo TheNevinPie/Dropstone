@@ -105,7 +105,7 @@ The build publishes `publish\Dropstone.exe` and `publish\config.ini`, then creat
 3. Run `Dropstone.exe` and confirm the detected LeviLauncher path (or locate `LeviLauncher.exe` manually).
 4. Choose the install folder. The default is `%LOCALAPPDATA%\Dropstone`.
 5. Choose a payload archive or `.dll`, or use the payload configured in `config.ini`.
-6. Click **Install**. During the install Windows shows one elevation prompt ("Windows PowerShell") for the event watch; Dropstone extracts the payload, registers the task, applies the payload to existing versions, and closes. If the prompt is declined, Dropstone finishes anyway and falls back to logon-triggered syncs.
+6. Click **Install**. During the install Windows shows one elevation prompt ("Windows PowerShell") for the event watch; Dropstone extracts the payload, registers the task, applies the payload to existing versions, and shows the result. The window stays open until you click **Close**. If the prompt is declined, Dropstone finishes anyway and falls back to logon-triggered syncs.
 
 ## Installed files
 

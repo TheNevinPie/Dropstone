@@ -25,6 +25,25 @@ $manifestOk = Test-Path (Join-Path $sb.Install "deployed.json")
 Record-Result -Id "T23b" -Test "the install records a deployment manifest" -Pass $manifestOk -Severity "Blocker" `
     -Detail ("deployed.json present = $manifestOk (the manifest is what makes replace/uninstall correct)")
 
-Stop-App -ProcessId $p.Id
+Start-Sleep -Seconds 3
+$p.Refresh()
+$stayedOpen = -not $p.HasExited
+$guidanceOk = ($res.Message -like "*worker is now installed*") -and ($res.Message -like "*replace the payload or uninstall*")
+Record-Result -Id "T30" -Test "the install result stays open and explains the installed worker" -Pass ($stayedOpen -and $guidanceOk) -Severity "Medium" `
+    -Detail ("process alive 3s after result = $stayedOpen ; worker guidance = $guidanceOk")
+
+$closeClicked = Invoke-UiButton -ProcessId $p.Id -Name "Close"
+$exited = $p.WaitForExit(10000)
+Record-Result -Id "T30b" -Test "the result screen Close button exits the app" -Pass ($closeClicked -and $exited) -Severity "Medium" `
+    -Detail ("Close invoked = $closeClicked ; app exited = $exited")
+if (-not $exited) { Stop-App -ProcessId $p.Id }
+
+$p2 = Start-App -Sandbox $sb
+$installedText = Get-UiField -ProcessId $p2.Id -Id "InstalledDescriptionText"
+$defaultTextOk = ($installedText -like "*worker is installed*") -and ($installedText -like "*replace the payload or uninstall*")
+Record-Result -Id "T30c" -Test "the installed screen explains the worker when no custom text is set" -Pass $defaultTextOk -Severity "Medium" `
+    -Detail ("InstalledDescriptionText = '$installedText'")
+Invoke-UiButton -ProcessId $p2.Id -Name "Close" | Out-Null
+if (-not $p2.WaitForExit(10000)) { Stop-App -ProcessId $p2.Id }
 
 
