@@ -116,7 +116,7 @@ public sealed class InstallerService
 
         TryDeleteDirectory(previousPayload);
 
-        Report(progress, "Installing logic files...", 30);
+        Report(progress, "Installing the Dropstone worker...", 30);
         CopyWorkerFiles(installDir);
 
         Report(progress, "Writing configuration...", 45);

@@ -701,7 +701,7 @@ public sealed partial class MainWindow : Window
         var dialogContent = new StackPanel { Spacing = 12 };
         dialogContent.Children.Add(new TextBlock
         {
-            Text = "This removes the logic files, payload, scheduled task, and settings. LeviLauncher itself is not touched.",
+            Text = "This removes the Dropstone worker, payload, scheduled task, and settings. LeviLauncher itself is not touched.",
             TextWrapping = TextWrapping.Wrap
         });
 

@@ -55,7 +55,7 @@
                                 Click="BrowseInstall_Click" />
                         </Grid>
                         <TextBlock
-                            Text="The logic files are copied here and the payload is kept in a 'payload' subfolder."
+                            Text="The Dropstone worker is installed here, and the payload is kept in a 'payload' subfolder."
                             Opacity="0.7"
                             TextWrapping="Wrap" />
                     </StackPanel>
